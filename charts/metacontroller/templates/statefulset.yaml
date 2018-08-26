@@ -1,0 +1,37 @@
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: {{ template "metacontroller.fullname" . }}
+  labels:
+    app: {{ template "metacontroller.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "metacontroller.name" . }}
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        app: {{ template "metacontroller.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ template "metacontroller.fullname" . }}
+      containers:
+      - name: metacontroller
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: ["/usr/bin/metacontroller"]
+        args:
+        - --logtostderr
+        - -v=4
+        - --discovery-interval=20s
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}

@@ -1,0 +1,13 @@
+apiVersion: skaffold/v1alpha2
+kind: Config
+build:
+  artifacts:
+  - imageName: gcr.io/cloud-solutions-group/terraform-operator
+    docker:
+      dockerfilePath: Dockerfile.dev
+  # googleCloudBuild:
+  #   diskSizeGb: 200
+  #   machineType: N1_HIGHCPU_8
+  #   timeout: 900s
+deploy:
+  kustomize: {}

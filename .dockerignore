@@ -1,0 +1,6 @@
+.git/
+job*-.yaml
+charts/
+examples/
+manifests/
+images/

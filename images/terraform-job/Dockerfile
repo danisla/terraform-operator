@@ -1,0 +1,29 @@
+FROM google/cloud-sdk:alpine
+
+RUN apk add --update \
+    jq \
+    curl \
+    autossh \
+    openssl \
+    ca-certificates
+
+RUN mkdir -p /opt/terraform
+
+# Install latest terraform
+COPY terraform-install.sh /opt/terraform/terraform-install.sh
+RUN chmod +x /opt/terraform/terraform-install.sh
+RUN /opt/terraform/terraform-install.sh
+RUN cp ${HOME}/bin/terraform /usr/local/bin/terraform
+
+# Install kubectl
+RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl > /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+
+COPY run-terraform.sh /opt/terraform/run-terraform.sh
+RUN chmod +x /opt/terraform/run-terraform.sh
+
+COPY run-terraform-destroy.sh /opt/terraform/run-terraform-destroy.sh
+RUN chmod +x /opt/terraform/run-terraform-destroy.sh
+
+WORKDIR /opt/terraform
+
+ENTRYPOINT ["/opt/terraform/run-terraform.sh"]

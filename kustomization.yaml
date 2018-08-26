@@ -1,0 +1,7 @@
+commonLabels:
+  app: terraform-operator
+resources:
+- manifests/terraform-operator-rbac.yaml
+- manifests/terraform-operator.yaml
+patches:
+- manifests/dev/image.yaml
