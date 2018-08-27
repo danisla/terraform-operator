@@ -1,0 +1,5 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/cloud-solutions-group/terraform-pod:latest', '.']
+  dir: './terraform-pod'
+images: ['gcr.io/cloud-solutions-group/terraform-pod:latest']

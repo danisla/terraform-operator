@@ -14,7 +14,10 @@ var (
 )
 
 func init() {
-	config = Config{}
+	config = Config{
+		Project:    "", // Derived from instance metadata server
+		ProjectNum: "", // Derived from instance metadata server
+	}
 
 	if err := config.loadAndValidate(); err != nil {
 		log.Fatalf("Error loading config: %v", err)

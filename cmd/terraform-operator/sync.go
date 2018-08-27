@@ -18,7 +18,7 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 	case StateIdle:
 		if changed {
 			// Call StateIdle handler
-			nextState, err = stateIdleHandler(parentType, parent, status, &desiredChildren)
+			nextState, err = stateIdleHandler(parentType, parent, status, children, &desiredChildren)
 		}
 
 	case StateProviderConfigPending:
@@ -29,22 +29,18 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 		// Call StateSourcePending handler
 		nextState, err = stateSourcePending(parentType, parent, status, &desiredChildren)
 
+	case StatePodRunning:
+		// Call StatePodRunning handler
+		nextState, err = statePodRunning(parentType, parent, status, children, &desiredChildren)
 	}
 
 	if err != nil {
 		return status, &desiredChildren, err
 	}
 
-	if !changed {
-		// Claim the ConfigMaps.
-		for _, o := range children.ConfigMaps {
-			desiredChildren = append(desiredChildren, o)
-		}
-
-		// Claim the Jobs.
-		for _, o := range children.Jobs {
-			desiredChildren = append(desiredChildren, o)
-		}
+	// Claim the Pods.
+	for _, o := range children.Pods {
+		desiredChildren = append(desiredChildren, o)
 	}
 
 	// Advance the state

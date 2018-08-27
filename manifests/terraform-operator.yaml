@@ -24,9 +24,7 @@ spec:
     resource: terraformplans
   childResources:
   - apiVersion: v1
-    resource: configmaps
-  - apiVersion: batch/v1
-    resource: jobs
+    resource: pods
   hooks:
     sync:
       webhook:

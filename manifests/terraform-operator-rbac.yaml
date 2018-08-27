@@ -23,14 +23,11 @@ metadata:
   name: terraform-operator
   namespace: metacontroller
 rules:
-- apiGroups: ["", "batch"] # "" indicates the core API group
-  resources: ["configmaps", "jobs"]
-  verbs: ["*"]
-- apiGroups: [""]
-  resources: ["secrets"]
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["configmaps", "secrets"]
   verbs: ["get", "list"]
 ---
-# Terraform Job RBAC
+# Terraform Pod RBAC
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -56,8 +53,5 @@ metadata:
   name: terraform
 rules:
 - apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: ["get", "list", "create"]
-- apiGroups: ["batch", "extensions"]
-  resources: ["jobs"]
-  verbs: ["get", "list", "update", "patch"]
+  resources: ["pods"]
+  verbs: ["get","list","patch"]

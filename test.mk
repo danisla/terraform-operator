@@ -2,7 +2,7 @@ TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-tfplan.yaml
 TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-tfapply.yaml 
 TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-tfdestroy.yaml
 
-IMAGE := "gcr.io/cloud-solutions-group/terraform-job:latest"
+IMAGE := "gcr.io/cloud-solutions-group/terraform-pod:latest"
 
 TEST_ARTIFACTS := $(TEST_PLAN_ARTIFACTS) $(TEST_APPLY_ARTIFACTS) $(TEST_DESTROY_ARTIFACTS)
 

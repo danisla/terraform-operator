@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
-func stateIdleHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, desiredChildren *[]interface{}) (string, error) {
+func stateIdleHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
 	status.LastAppliedSig = calcParentSig(parent, "")
 
 	// Map of provider config secret names to list of key names.
@@ -49,19 +51,15 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		status.ConfigMapHash = shaSum
 	}
 
-	// Generate a new job name for each run, this will be postfixed with a timestamp.
-	namePrefix := fmt.Sprintf("%s-", parent.Name)
-
 	// Get the image and pull policy (or default) from the spec.
 	image, imagePullPolicy := getImageAndPullPolicy(parent)
 
-	myLog(parent, "DEBUG", fmt.Sprintf("Image: %s, pullPolicy: %s", image, imagePullPolicy))
-
-	// Kustomization data
-	tfk := TFKustomization{
+	// Terraform Pod data
+	tfp := TFPod{
 		Image:              image,
 		ImagePullPolicy:    imagePullPolicy,
 		Namespace:          parent.Namespace,
+		ProjectID:          config.Project,
 		ConfigMapName:      parent.Spec.Source.ConfigMap.Name,
 		ProviderConfigKeys: providerConfigKeys,
 		SourceDataKeys:     sourceDataKeys,
@@ -71,56 +69,30 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		TFVars:             parent.Spec.TFVars,
 	}
 
-	// Make Kustomization
-	var kustomizationPath string
+	// Make Terraform Pod
+	var pod corev1.Pod
 	var err error
 	switch parentType {
 	case ParentPlan:
-		kustomizationPath, err = tfk.makeKustomization(PLAN_JOB_BASE_DIR, PLAN_JOB_BASE_NAME, namePrefix, []string{PLAN_JOB_CMD})
+		// Generate new ordinal pod name
+		podName := makeOrdinalPodName(PLAN_POD_BASE_NAME, parent, children)
+
+		pod, err = tfp.makeTerraformPod(podName, []string{PLAN_POD_CMD})
 	default:
 		// This should not happen.
 		myLog(parent, "WARN", fmt.Sprintf("Unhandled parentType in StateIdle: %s", parentType))
 	}
 	if err != nil {
-		myLog(parent, "ERROR", fmt.Sprintf("Failed to generate kustomization.yaml: %v", err))
+		myLog(parent, "ERROR", fmt.Sprintf("Failed to generate terraform pod: %v", err))
 		return status.StateCurrent, nil
 	}
 
-	myLog(parent, "DEBUG", fmt.Sprintf("Path to kustomization.yaml: %s", kustomizationPath))
+	*desiredChildren = append(*desiredChildren, pod)
 
-	// Build the kustomization
-	build, err := buildKustomization(kustomizationPath)
-	if err != nil {
-		myLog(parent, "ERROR", fmt.Sprintf("%v", err))
-		return status.StateCurrent, nil
-	}
+	status.PodName = pod.Name
 
-	// Save build output to ConfigMap, add as child resource.
-	kcmName := makeKustomizeConfigMapName(parent.Name, parentType)
-	kcm, err := makeKustomizeBuildConfigMap(kcmName, build)
-	if err != nil {
-		myLog(parent, "ERROR", fmt.Sprintf("Failed to create ConfigMap for kustomize build output: %v", err))
-		return status.StateCurrent, nil
-	}
-	*desiredChildren = append(*desiredChildren, kcm)
-	status.KustomizeBuildConfigMap = kcmName
-	myLog(parent, "INFO", fmt.Sprintf("Created Kustomization build ConfigMap: %s", kcmName))
+	myLog(parent, "INFO", fmt.Sprintf("Created pod: %s", pod.Name))
 
-	// Split build into child resources
-	resources, err := splitKustomizeBuildOutput(build)
-	if err != nil {
-		myLog(parent, "ERROR", fmt.Sprintf("Failed to split Kustomize build output into separate resources: %v", err))
-		return status.StateCurrent, nil
-	}
-	// Add each resource to the list of desired children
-	for _, resource := range resources {
-		kind, name := getResourceKindName(resource)
-		myLog(parent, "INFO", fmt.Sprintf("Creating child %s: %s", kind, name))
-		*desiredChildren = append(*desiredChildren, resource)
-		if kind == "Job" {
-			status.JobName = name
-		}
-	}
-
-	return status.StateCurrent, nil
+	// Transition to StatePodRunning
+	return StatePodRunning, nil
 }

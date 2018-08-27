@@ -1,15 +1,19 @@
 package main
 
 import (
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Default image used for terraform job, can be overridden using spec.Image and spec.ImagePullPolicy
+// Default image used for terraform pod, can be overridden using spec.Image and spec.ImagePullPolicy
 const (
-	DEFAULT_IMAGE             = "gcr.io/cloud-solutions-group/terraform-job:latest"
+	DEFAULT_IMAGE             = "gcr.io/cloud-solutions-group/terraform-pod:latest"
 	DEFAULT_IMAGE_PULL_POLICY = corev1.PullIfNotPresent
+)
+
+// ServiceAccount installed with Controller deployment
+const (
+	DEFAULT_POD_SERVICE_ACCOUNT = "terraform"
 )
 
 // TerraformControllerState represents the string mapping of the possible controller states. See the const definition below for enumerated states.
@@ -22,6 +26,8 @@ const (
 	StateSourcePending = "SOURCE_PENDING"
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
 	StateProviderConfigPending = "PROVIDER_PENDING"
+	// StatePodRunning means  the controller is waiting for the terraform pod to complete.
+	StatePodRunning = "POD_RUNNING"
 )
 
 // ParentType represents the strign mapping to the possible parent types in the const below.
@@ -47,17 +53,16 @@ type SyncResponse struct {
 
 // TerraformControllerRequestChildren is the children definition passed by the CompositeController request for the Terraform controller.
 type TerraformControllerRequestChildren struct {
-	Jobs       map[string]batchv1.Job      `json:"Job.batch/v1"`
-	ConfigMaps map[string]corev1.ConfigMap `json:"ConfigMap.v1"`
+	Pods map[string]corev1.Pod `json:"Pod.v1"`
 }
 
 // TerraformControllerStatus is the status structure for the custom resource
 type TerraformControllerStatus struct {
-	LastAppliedSig          string `json:"lastAppliedSig"`
-	ConfigMapHash           string `json:"configMapHash"`
-	StateCurrent            string `json:"stateCurrent"`
-	KustomizeBuildConfigMap string `json:"kustomizeBuildConfigMap"`
-	JobName                 string `json:"jobName"`
+	LastAppliedSig string `json:"lastAppliedSig"`
+	ConfigMapHash  string `json:"configMapHash"`
+	StateCurrent   string `json:"stateCurrent"`
+	PodName        string `json:"podName"`
+	TFPlan         string `json:"planFile"`
 }
 
 // Terraform is the custom resource definition structure.

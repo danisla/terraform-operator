@@ -31,12 +31,12 @@ function publishOutputs() {
         JSON=$(terraform output -module $module -json | jq -r -c '.')
     esac
 
-    if [[ -n ${JOB_NAME+x} ]]; then
-        echo "INFO: Updating job with outputs from $module module."
+    if [[ -n ${POD_NAME+x} ]]; then
+        echo "INFO: Updating pod annotation with outputs from $module module."
         PATCH=$(echo "{}" | jq -r -c --arg data "${JSON}" '[{op: "add", path: "/metadata/annotations/terraform-output", value: $data}]')
-        kubectl patch job "${JOB_NAME}" --type json -p="${PATCH}"
+        kubectl patch pod "${POD_NAME}" --type json -p="${PATCH}"
     else
-      echo "ERROR: Missing JOB_NAME env var, should have been provided from downward API."
+      echo "ERROR: Missing POD_NAME env var, should have been provided from downward API."
       return 1
     fi
 }
