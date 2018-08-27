@@ -2,11 +2,12 @@ TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-tfplan.yaml
 TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-tfapply.yaml 
 TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-tfdestroy.yaml
 
+IMAGE := "gcr.io/cloud-solutions-group/terraform-job:latest"
+
 TEST_ARTIFACTS := $(TEST_PLAN_ARTIFACTS) $(TEST_APPLY_ARTIFACTS) $(TEST_DESTROY_ARTIFACTS)
 
-CREDENTIALS_SECRET_YAML := $(HOME)/.secrets-tf-common-disla.yaml
-CREDENTIALS_SECRET_NAME := common
-CREDENTIALS_SECRET_KEY := service_account_json
+GOOGLE_CREDENTIALS_SA_KEY := $(HOME)/.tf-google-sa-key.json
+GOOGLE_PROVIDER_SECRET_NAME := tf-google
 
 project:
 	$(eval PROJECT := $(shell gcloud config get-value project))
@@ -21,7 +22,7 @@ metadata:
   name: {{NAME}}
 data: 
   terraform.tfvars: |-
-    project = {{PROJECT}}
+    region = "us-central1"
   main.tf: |-
     variable "region" {
       default = "us-central1"
@@ -30,8 +31,21 @@ data:
       region = "$${var.region}"
     }
     resource "google_compute_project_metadata_item" "default" {
-      key = "{{NAME}}"
+      key = "tf-job-test"
       value = "tf-operator-test"
+    }
+    data "google_client_config" "current" {}
+    output "project" {
+      value = "$${data.google_client_config.current.project}"
+    }
+    output "region" {
+      value = "$${var.region}"
+    }
+    output "metadata_key" {
+      value = "$${google_compute_project_metadata_item.default.key}"
+    }
+    output "metadata_value" {
+      value = "$${google_compute_project_metadata_item.default.value}"
     }
 endef
 
@@ -41,11 +55,13 @@ kind: {{KIND}}
 metadata:
   name: {{NAME}}
 spec:
+  image: {{IMAGE}}
+  imagePullPolicy: Always
   backendBucket: {{BACKEND_BUCKET}}
   backendPrefix: {{BACKEND_PREFIX}}
-  credentialsSecret:
-    name: {{CREDS_NAME}}
-    key: {{CREDS_KEY}}
+  providerConfig:
+    google:
+      secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
   source:
     configMap:
       name: {{CM_NAME}}
@@ -55,68 +71,72 @@ spec:
     region: us-central1
 endef
 
-credentials: $(CREDENTIALS_SECRET_YAML)
-	kubectl apply -f $<
+credentials: $(GOOGLE_CREDENTIALS_SA_KEY) project
+	kubectl create secret generic $(GOOGLE_PROVIDER_SECRET_NAME) --from-literal=GOOGLE_PROJECT=$(PROJECT) --from-file=GOOGLE_CREDENTIALS=$(GOOGLE_CREDENTIALS_SA_KEY)
 
 export TEST_CM
-job%-cm.yaml: project
+tests/job%-cm.yaml: project
+	@mkdir -p tests
 	@echo "$${TEST_CM}" | \
-	sed -e "s/{{NAME}}/job$*/g" \
+	sed -e "s/{{NAME}}/job$*-tf/g" \
         -e "s/{{PROJECT}}/$(PROJECT)/g" \
 	> $@
 
 export TEST_JOB
-job%-tfplan.yaml: backend_bucket
+tests/job%-tfplan.yaml: backend_bucket
+	@mkdir -p tests
 	@echo "$${TEST_JOB}" | \
 	sed -e "s/{{KIND}}/TerraformPlan/g" \
 	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
 	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
-	    -e "s/{{CREDS_NAME}}/$(CREDENTIALS_SECRET_NAME)/g" \
-	    -e "s/{{CREDS_KEY}}/$(CREDENTIALS_SECRET_KEY)/g" \
-	    -e "s/{{CM_NAME}}/job$*/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{CM_NAME}}/job$*-tf/g" \
 	> $@
 
 export TEST_JOB
-job%-tfapply.yaml: backend_bucket
+tests/job%-tfapply.yaml: backend_bucket
+	@mkdir -p tests
 	@echo "$${TEST_JOB}" | \
 	sed -e "s/{{KIND}}/TerraformApply/g" \
 	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
 	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
-	    -e "s/{{CREDS_NAME}}/$(CREDENTIALS_SECRET_NAME)/g" \
-	    -e "s/{{CREDS_KEY}}/$(CREDENTIALS_SECRET_KEY)/g" \
-	    -e "s/{{CM_NAME}}/job$*/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{CM_NAME}}/job$*-tf/g" \
 	> $@
 
 export TEST_JOB
-job%-tfdestroy.yaml: backend_bucket
+tests/job%-tfdestroy.yaml: backend_bucket
+	@mkdir -p tests
 	@echo "$${TEST_JOB}" | \
 	sed -e "s/{{KIND}}/TerraformDestroy/g" \
 	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
 	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
-	    -e "s/{{CREDS_NAME}}/$(CREDENTIALS_SECRET_NAME)/g" \
-	    -e "s/{{CREDS_KEY}}/$(CREDENTIALS_SECRET_KEY)/g" \
-	    -e "s/{{CM_NAME}}/job$*/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{CM_NAME}}/job$*-tf/g" \
 	> $@
 
-test-artifacts: $(TEST_ARTIFACTS)
+test-artifacts: $(addprefix tests/,$(TEST_ARTIFACTS))
 
-test: $(TEST_PLAN_ARTIFACTS)
+test: $(addprefix tests/,$(TEST_PLAN_ARTIFACTS))
 	-@for f in $^; do kubectl apply -f $$f; done
 
-test-plan: $(TEST_PLAN_ARTIFACTS)
+test-plan: $(addprefix tests/,$(TEST_PLAN_ARTIFACTS))
 	-@for f in $^; do kubectl apply -f $$f; done
 
-test-apply: $(TEST_APPLY_ARTIFACTS)
+test-apply: $(addprefix tests/,$(TEST_APPLY_ARTIFACTS))
 	-@for f in $^; do kubectl apply -f $$f; done
 
-test-destroy: $(TEST_DESTROY_ARTIFACTS)
+test-destroy: $(addprefix tests/,$(TEST_DESTROY_ARTIFACTS))
 	-@for f in $^; do kubectl apply -f $$f; done
 
-test-stop: $(TEST_ARTIFACTS)
+test-stop: $(addprefix tests/,$(TEST_ARTIFACTS))
 	-@for f in $^; do kubectl delete -f $$f; done
 
-test-clean: $(TEST_ARTIFACTS)
+test-clean: $(addprefix tests/,$(TEST_ARTIFACTS))
 	rm -f $^

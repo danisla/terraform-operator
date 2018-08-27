@@ -4,6 +4,8 @@ set -x
 set -e
 set -o pipefail
 
+terraform version
+
 cat > backend.tf <<EOF
 terraform {
   backend "gcs" {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"os"
 )
 
 var (
@@ -12,10 +14,7 @@ var (
 )
 
 func init() {
-	config = Config{
-		Project:    "", // Derived from instance metadata server
-		ProjectNum: "", // Derived from instance metadata server
-	}
+	config = Config{}
 
 	if err := config.loadAndValidate(); err != nil {
 		log.Fatalf("Error loading config: %v", err)
@@ -48,6 +47,12 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if os.Getenv("HTTP_DEBUG") != "" {
+			log.Printf("---HTTP REQUEST %s %s ---", r.Method, r.URL.String())
+			reqDump, _ := httputil.DumpRequest(r, true)
+			log.Printf(string(reqDump))
+		}
+
 		var req SyncRequest
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
@@ -59,14 +64,16 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var desiredStatus *TerraformControllerStatus
 		var desiredChildren *[]interface{}
-		switch r.URL.Path {
-		case "/sync-plan":
-			desiredStatus, desiredChildren, err = sync(ParentPlan, &req.Parent, &req.Children)
-		case "/sync-apply":
-			desiredStatus, desiredChildren, err = sync(ParentApply, &req.Parent, &req.Children)
-		case "/sync-destroy":
-			desiredStatus, desiredChildren, err = sync(ParentDestroy, &req.Parent, &req.Children)
+		var parentType ParentType
+		switch req.Parent.Kind {
+		case "TerraformPlan":
+			parentType = ParentPlan
+		case "TerraformApply":
+			parentType = ParentApply
+		case "TerraformDestroy":
+			parentType = ParentDestroy
 		}
+		desiredStatus, desiredChildren, err = sync(parentType, &req.Parent, &req.Children)
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

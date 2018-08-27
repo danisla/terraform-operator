@@ -20,13 +20,31 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 			// Call StateIdle handler
 			nextState, err = stateIdleHandler(parentType, parent, status, &desiredChildren)
 		}
+
+	case StateProviderConfigPending:
+		// Call StateProviderConfigPending handler
+		nextState, err = stateProviderConfigPending(parentType, parent, status, &desiredChildren)
+
 	case StateSourcePending:
-		// Call StateIdle handler
+		// Call StateSourcePending handler
 		nextState, err = stateSourcePending(parentType, parent, status, &desiredChildren)
+
 	}
 
 	if err != nil {
 		return status, &desiredChildren, err
+	}
+
+	if !changed {
+		// Claim the ConfigMaps.
+		for _, o := range children.ConfigMaps {
+			desiredChildren = append(desiredChildren, o)
+		}
+
+		// Claim the Jobs.
+		for _, o := range children.Jobs {
+			desiredChildren = append(desiredChildren, o)
+		}
 	}
 
 	// Advance the state

@@ -53,13 +53,21 @@ spec:
 make install-metacontroller
 ```
 
-4. Install go dependencies:
+4. Install provider credentials:
+
+```
+make -e GOOGLE_CREDENTIALS_SA_KEY=~/.tf-google-sa-key.json credentials
+```
+
+> Make sure you have your terraform service account json saved to `~/.tf-google-sa-key.json` or another path.
+
+5. Install go dependencies:
 
 ```
 dep ensure
 ```
 
-5. Run in cluster with skaffold:
+6. Run in cluster with skaffold:
 
 ```
 skaffold dev

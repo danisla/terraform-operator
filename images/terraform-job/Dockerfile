@@ -18,12 +18,15 @@ RUN cp ${HOME}/bin/terraform /usr/local/bin/terraform
 # Install kubectl
 RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl > /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
 
-COPY run-terraform.sh /opt/terraform/run-terraform.sh
-RUN chmod +x /opt/terraform/run-terraform.sh
+COPY run-terraform-apply.sh /run-terraform-apply.sh
+RUN chmod +x /run-terraform-apply.sh
 
-COPY run-terraform-destroy.sh /opt/terraform/run-terraform-destroy.sh
-RUN chmod +x /opt/terraform/run-terraform-destroy.sh
+COPY run-terraform-destroy.sh /run-terraform-destroy.sh
+RUN chmod +x /run-terraform-destroy.sh
+
+COPY run-terraform-plan.sh /run-terraform-plan.sh
+RUN chmod +x /run-terraform-plan.sh
 
 WORKDIR /opt/terraform
 
-ENTRYPOINT ["/opt/terraform/run-terraform.sh"]
+ENTRYPOINT ["/run-terraform-plan.sh"]

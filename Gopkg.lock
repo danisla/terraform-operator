@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:5c3894b2aa4d6bead0ceeea6831b305d62879c871780e7b76296ded1b004bc57"
-  name = "cloud.google.com/go"
-  packages = ["compute/metadata"]
-  pruneopts = "UT"
-  revision = "64a2037ec6be8a4b0c1d1f706ed35b428b989239"
-  version = "v0.26.0"
-
-[[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -112,11 +104,10 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7479a672bb9b4b1f96a2d4da0252e40ae7abd2110cac3ad326bfadbe46ec76ec"
+  digest = "1:d1209fa9ed40a3a24de8498a9bead59eb3333f16a73fa23ba1fc6677a3cfc9d7"
   name = "golang.org/x/net"
   packages = [
     "context",
-    "context/ctxhttp",
     "http/httpguts",
     "http2",
     "http2/hpack",
@@ -124,20 +115,6 @@
   ]
   pruneopts = "UT"
   revision = "4bcd98cce591d8c7061bf313d7a3cbad05b58549"
-
-[[projects]]
-  branch = "master"
-  digest = "1:f645667d687fc8bf228865a2c5455824ef05bad08841e673673ef2bb89ac5b90"
-  name = "golang.org/x/oauth2"
-  packages = [
-    ".",
-    "google",
-    "internal",
-    "jws",
-    "jwt",
-  ]
-  pruneopts = "UT"
-  revision = "d2e6202438beef2727060aa7cabdd924d92ebfd9"
 
 [[projects]]
   branch = "master"
@@ -180,39 +157,6 @@
   packages = ["rate"]
   pruneopts = "UT"
   revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
-
-[[projects]]
-  branch = "master"
-  digest = "1:e55eefb41da7c7b95fcf3e7d461194d679a5fa49b18621981fc76168b0f13922"
-  name = "google.golang.org/api"
-  packages = [
-    "compute/v1",
-    "gensupport",
-    "googleapi",
-    "googleapi/internal/uritemplates",
-    "servicemanagement/v1",
-  ]
-  pruneopts = "UT"
-  revision = "7954115fcf34e0dcda6981c9ed8a81a293f0489b"
-
-[[projects]]
-  digest = "1:c8907869850adaa8bd7631887948d0684f3787d0912f1c01ab72581a6c34432e"
-  name = "google.golang.org/appengine"
-  packages = [
-    ".",
-    "internal",
-    "internal/app_identity",
-    "internal/base",
-    "internal/datastore",
-    "internal/log",
-    "internal/modules",
-    "internal/remote_api",
-    "internal/urlfetch",
-    "urlfetch",
-  ]
-  pruneopts = "UT"
-  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
-  version = "v1.1.0"
 
 [[projects]]
   digest = "1:2d1fbdc6777e5408cabeb02bf336305e724b925ff4546ded0fa8715a7267922a"
@@ -368,12 +312,10 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "cloud.google.com/go/compute/metadata",
-    "golang.org/x/oauth2",
-    "golang.org/x/oauth2/google",
-    "google.golang.org/api/compute/v1",
-    "google.golang.org/api/servicemanagement/v1",
+    "github.com/ghodss/yaml",
     "k8s.io/api/batch/v1",
+    "k8s.io/api/core/v1",
+    "k8s.io/api/rbac/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/rest",

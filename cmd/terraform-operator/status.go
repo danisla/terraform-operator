@@ -32,6 +32,14 @@ func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren)
 		status.ConfigMapHash = parent.Status.ConfigMapHash
 	}
 
+	if parent.Status.KustomizeBuildConfigMap != "" && changed == false {
+		status.KustomizeBuildConfigMap = parent.Status.KustomizeBuildConfigMap
+	}
+
+	if parent.Status.JobName != "" && changed == false {
+		status.JobName = parent.Status.JobName
+	}
+
 	return &status
 }
 

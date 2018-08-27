@@ -12,34 +12,6 @@ spec:
     kind: TerraformPlan
     shortNames: ["tfplan"]
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: terraformapplys.ctl.isla.solutions
-spec:
-  group: ctl.isla.solutions
-  version: v1
-  scope: Namespaced
-  names:
-    plural: terraformapplys
-    singular: terraformapply
-    kind: TerraformApply
-    shortNames: ["tfapply"]
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: terraformdestroys.ctl.isla.solutions
-spec:
-  group: ctl.isla.solutions
-  version: v1
-  scope: Namespaced
-  names:
-    plural: terraformdestroys
-    singular: terraformdestroy
-    kind: TerraformDestroy
-    shortNames: ["tfdestroy"]
----
 apiVersion: metacontroller.k8s.io/v1alpha1
 kind: CompositeController
 metadata:
@@ -51,49 +23,79 @@ spec:
     apiVersion: ctl.isla.solutions/v1
     resource: terraformplans
   childResources:
+  - apiVersion: v1
+    resource: configmaps
   - apiVersion: batch/v1
     resource: jobs
   hooks:
     sync:
       webhook:
-        url: http://terraform-operator.metacontroller/sync-plan
+        url: http://terraform-operator.metacontroller/sync
 ---
-apiVersion: metacontroller.k8s.io/v1alpha1
-kind: CompositeController
-metadata:
-  name: terraform-operator-apply
-spec:
-  generateSelector: true
-  resyncPeriodSeconds: 2
-  parentResource:
-    apiVersion: ctl.isla.solutions/v1
-    resource: terraformapplys
-  childResources:
-  - apiVersion: batch/v1
-    resource: jobs
-  hooks:
-    sync:
-      webhook:
-        url: http://terraform-operator.metacontroller/sync-apply
----
-apiVersion: metacontroller.k8s.io/v1alpha1
-kind: CompositeController
-metadata:
-  name: terraform-operator-destroy
-spec:
-  generateSelector: true
-  resyncPeriodSeconds: 2
-  parentResource:
-    apiVersion: ctl.isla.solutions/v1
-    resource: terraformdestroys
-  childResources:
-  - apiVersion: batch/v1
-    resource: jobs
-  hooks:
-    sync:
-      webhook:
-        url: http://terraform-operator.metacontroller/sync-destroy
----
+# apiVersion: apiextensions.k8s.io/v1beta1
+# kind: CustomResourceDefinition
+# metadata:
+#   name: terraformapplys.ctl.isla.solutions
+# spec:
+#   group: ctl.isla.solutions
+#   version: v1
+#   scope: Namespaced
+#   names:
+#     plural: terraformapplys
+#     singular: terraformapply
+#     kind: TerraformApply
+#     shortNames: ["tfapply"]
+# ---
+# apiVersion: apiextensions.k8s.io/v1beta1
+# kind: CustomResourceDefinition
+# metadata:
+#   name: terraformdestroys.ctl.isla.solutions
+# spec:
+#   group: ctl.isla.solutions
+#   version: v1
+#   scope: Namespaced
+#   names:
+#     plural: terraformdestroys
+#     singular: terraformdestroy
+#     kind: TerraformDestroy
+#     shortNames: ["tfdestroy"]
+# ---
+# apiVersion: metacontroller.k8s.io/v1alpha1
+# kind: CompositeController
+# metadata:
+#   name: terraform-operator-apply
+# spec:
+#   generateSelector: true
+#   resyncPeriodSeconds: 2
+#   parentResource:
+#     apiVersion: ctl.isla.solutions/v1
+#     resource: terraformapplys
+#   childResources:
+#   - apiVersion: batch/v1
+#     resource: jobs
+#   hooks:
+#     sync:
+#       webhook:
+#         url: http://terraform-operator.metacontroller/sync
+# ---
+# apiVersion: metacontroller.k8s.io/v1alpha1
+# kind: CompositeController
+# metadata:
+#   name: terraform-operator-destroy
+# spec:
+#   generateSelector: true
+#   resyncPeriodSeconds: 2
+#   parentResource:
+#     apiVersion: ctl.isla.solutions/v1
+#     resource: terraformdestroys
+#   childResources:
+#   - apiVersion: batch/v1
+#     resource: jobs
+#   hooks:
+#     sync:
+#       webhook:
+#         url: http://terraform-operator.metacontroller/sync
+# ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -116,6 +118,9 @@ spec:
       - name: terraform-operator
         image: gcr.io/cloud-solutions-group/terraform-operator:0.1.0
         command: ["/usr/bin/terraform-operator"]
+        # env:
+        # - name: HTTP_DEBUG
+        #   value: "true"
 ---
 apiVersion: v1
 kind: Service

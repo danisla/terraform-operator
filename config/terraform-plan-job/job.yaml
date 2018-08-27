@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tfplan
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 4
+  template:
+    spec:
+      serviceAccountName: terraform
+      containers:
+      - name: terraform
+        image: gcr.io/cloud-solutions-group/terraform-job:latest
+        command: ["/run-terraform-plan.sh"]
+        env:
+        - name: JOB_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['job-name']
+        volumeMounts:
+        - name: state
+          mountPath: /opt/terraform/.terraform
+        - name: config
+          mountPath: /opt/terraform/main.tf
+          subPath: main.tf
+      restartPolicy: Never
+      volumes:
+      - name: config
+        configMap:
+          name: terraform-config
+      - name: state
+        emptyDir: {}
+  
