@@ -50,7 +50,7 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 
 	// Advance the state
 	if status.StateCurrent != nextState {
-		myLog(parent, "INFO", fmt.Sprintf("Current state: %s", nextState))
+		myLog(parent, "INFO", fmt.Sprintf("State %s -> %s", status.StateCurrent, nextState))
 	}
 	status.StateCurrent = nextState
 

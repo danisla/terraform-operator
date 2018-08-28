@@ -9,7 +9,7 @@ import (
 
 func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren) *TerraformControllerStatus {
 	status := TerraformControllerStatus{
-		StateCurrent: "IDLE",
+		StateCurrent: StateIdle,
 	}
 
 	changed := false
@@ -54,6 +54,10 @@ func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren)
 
 	if parent.Status.FinishedAt != "" && changed == false {
 		status.FinishedAt = parent.Status.FinishedAt
+	}
+
+	if parent.Status.Duration != "" && changed == false {
+		status.Duration = parent.Status.Duration
 	}
 
 	return &status

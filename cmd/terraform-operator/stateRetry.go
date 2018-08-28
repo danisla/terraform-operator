@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const DEFAULT_RETRY_BACKOFF_SCALE = 4.0
+const DEFAULT_RETRY_BACKOFF_SCALE = 5.0
 
 func stateRetryHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
 
@@ -29,5 +29,5 @@ func stateRetryHandler(parentType ParentType, parent *Terraform, status *Terrafo
 }
 
 func computeExponentialBackoff(retryCount int, scaleFactor float64) float64 {
-	return ((math.Pow(2, float64(retryCount)) - 1) / 2.0) * scaleFactor
+	return ((math.Pow(2, float64(retryCount+1)) - 1) / 2.0) * scaleFactor
 }

@@ -7,13 +7,14 @@ import (
 )
 
 func stateIdleHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
-	status.LastAppliedSig = calcParentSig(parent, "")
 
 	// Map of provider config secret names to list of key names.
 	providerConfigKeys := make(map[string][]string, 0)
 
 	// Map of sourceData key names, used to mount as paths in container.
 	sourceDataKeys := make([]string, 0)
+
+	configMapHash := status.ConfigMapHash
 
 	// Check for provider config secret. If not yet available, transition to StateProviderConfigPending
 	if parent.Spec.ProviderConfig != nil {
@@ -44,11 +45,10 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 			myLog(parent, "ERROR", fmt.Sprintf("ConfigMap source data is invalid: %v", err))
 			return status.StateCurrent, nil
 		}
-		shaSum, err := toSha1(sourceData)
+		configMapHash, err = toSha1(sourceData)
 		if err != nil {
 			return status.StateCurrent, err
 		}
-		status.ConfigMapHash = shaSum
 	}
 
 	// Get the image and pull policy (or default) from the spec.
@@ -68,6 +68,14 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		BackendPrefix:      parent.Spec.BackendPrefix,
 		TFVars:             parent.Spec.TFVars,
 	}
+
+	// If current pod is still running, do not create a new pod.
+	if active, _, _ := getPodStatus(children.Pods); active > 0 {
+		myLog(parent, "WARN", "Waiting for active pod to complete before creating new one.")
+		return StatePodRunning, nil
+	}
+
+	status.ConfigMapHash = configMapHash
 
 	// Make Terraform Pod
 	var pod corev1.Pod
@@ -90,9 +98,30 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	*desiredChildren = append(*desiredChildren, pod)
 
 	status.PodName = pod.Name
+	status.StartedAt = ""
+	status.FinishedAt = ""
+	status.Duration = ""
+	status.PodStatus = ""
 
 	myLog(parent, "INFO", fmt.Sprintf("Created pod: %s", pod.Name))
 
 	// Transition to StatePodRunning
 	return StatePodRunning, nil
+}
+
+func getPodStatus(pods map[string]corev1.Pod) (int, int, int) {
+	active := 0
+	succeeded := 0
+	failed := 0
+	for _, pod := range pods {
+		switch pod.Status.Phase {
+		case corev1.PodSucceeded:
+			succeeded++
+		case corev1.PodFailed:
+			failed++
+		default:
+			active++
+		}
+	}
+	return active, succeeded, failed
 }

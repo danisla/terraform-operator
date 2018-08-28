@@ -79,6 +79,7 @@ type TerraformControllerStatus struct {
 	PodStatus      string `json:"podStatus"`
 	StartedAt      string `json:"startedAt"`
 	FinishedAt     string `json:"finishedAt"`
+	Duration       string `json:"duration"`
 	TFPlan         string `json:"planFile"`
 	RetryCount     int    `json:"retryCount"`
 }
