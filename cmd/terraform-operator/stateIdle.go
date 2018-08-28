@@ -10,8 +10,11 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 
 	if active, _, _, _ := getPodStatus(children.Pods); active > 0 {
 		// Pods should only be active in the StatePodRunning or StateRetry states.
-		return StateNone, fmt.Errorf("re-sync collision")
+		return StateNone, fmt.Errorf("pods active in StateIdle, re-sync collision")
 	}
+
+	// Generate new ordinal pod name
+	podName := makeOrdinalPodName(parentType, parent, children)
 
 	// Map of provider config secret names to list of key names.
 	providerConfigKeys := make(map[string][]string, 0)
@@ -62,15 +65,19 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	} else if parent.Spec.Source.Embedded != "" {
 		myLog(parent, "INFO", "Using Terraform source embedded in spec")
 
-		// ConfigMap name in the form of: PARENT_NAME-PARENT_TYPE-src
-		configMapName = fmt.Sprintf("%s-%s-src", parent.Name, parentType)
+		configMapHash, _ = toSha1(parent.Spec.Source.Embedded)
 
-		var cm corev1.ConfigMap
-		configMapHash, cm = makeTerraformSourceConfigMap(configMapName, parent.Spec.Source.Embedded)
+		configMapName = fmt.Sprintf("%s-%s", podName, configMapHash[0:4])
+
+		cm := makeTerraformSourceConfigMap(configMapName, parent.Spec.Source.Embedded)
+
+		for k := range cm.Data {
+			sourceDataKeys = append(sourceDataKeys, k)
+		}
 
 		*desiredChildren = append(*desiredChildren, cm)
 
-		myLog(parent, "INFO", fmt.Sprintf("Created ConfigMap: %s", cm.Name))
+		myLog(parent, "INFO", fmt.Sprintf("Created ConfigMap: %s", configMapName))
 
 	} else {
 		myLog(parent, "WARN", "No terraform source defined. Deadend.")
@@ -102,9 +109,6 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	var err error
 	switch parentType {
 	case ParentPlan:
-		// Generate new ordinal pod name
-		podName := makeOrdinalPodName(PLAN_POD_BASE_NAME, parent, children)
-
 		pod, err = tfp.makeTerraformPod(podName, []string{PLAN_POD_CMD})
 	default:
 		// This should not happen.

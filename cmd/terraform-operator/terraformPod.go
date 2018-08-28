@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	PLAN_POD_CMD       = "/run-terraform-plan.sh"
-	PLAN_POD_BASE_NAME = ParentPlan
+	PLAN_POD_CMD = "/run-terraform-plan.sh"
 )
 
 // TFPod contains the data needed to create the Terraform Pod
@@ -212,8 +211,8 @@ func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
 	return image, pullPolicy
 }
 
-func makeOrdinalPodName(baseName string, parent *Terraform, children *TerraformControllerRequestChildren) string {
-	// Expected format is PARENT_NAME-BASENAME-INDEX
+func makeOrdinalPodName(parentType ParentType, parent *Terraform, children *TerraformControllerRequestChildren) string {
+	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
 	var validName = regexp.MustCompile(`^([a-z][a-z0-9]+)-([a-z][a-z0-9]+)-([0-9]+)$`)
 
 	i := -1
@@ -229,10 +228,10 @@ func makeOrdinalPodName(baseName string, parent *Terraform, children *TerraformC
 		}
 	}
 	i++
-	return fmt.Sprintf("%s-%s-%d", parent.Name, baseName, i)
+	return fmt.Sprintf("%s-%s-%d", parent.Name, parentType, i)
 }
 
-func makeTerraformSourceConfigMap(name string, data string) (string, corev1.ConfigMap) {
+func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
 	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -243,7 +242,5 @@ func makeTerraformSourceConfigMap(name string, data string) (string, corev1.Conf
 			"main.tf": data,
 		},
 	}
-
-	hash, _ := toSha1(data)
-	return hash, cm
+	return cm
 }

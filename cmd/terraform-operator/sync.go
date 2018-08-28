@@ -13,13 +13,8 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 	var err error
 	switch currState {
 	case StateNone:
-		if len(children.Pods) > 0 {
-			// Children pods should only be populated after the StateIdle handler has been run at least once.
-			err = fmt.Errorf("re-sync collision")
-		} else {
-			// Call StateIdle handler
-			nextState, err = stateIdleHandler(parentType, parent, status, children, &desiredChildren)
-		}
+		// Call StateIdle handler
+		nextState, err = stateIdleHandler(parentType, parent, status, children, &desiredChildren)
 
 	case StateIdle:
 		if changed {

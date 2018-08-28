@@ -1,6 +1,6 @@
-TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job1-src-tfplan.yaml
-TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job1-src-tfapply.yaml
-TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job1-src-tfdestroy.yaml
+TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml
+TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job2-src-tfapply.yaml
+TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job2-src-tfdestroy.yaml
 
 IMAGE := "gcr.io/cloud-solutions-group/terraform-pod:latest"
 
