@@ -40,6 +40,22 @@ func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren)
 		status.TFPlan = parent.Status.TFPlan
 	}
 
+	if parent.Status.RetryCount != 0 && changed == false {
+		status.RetryCount = parent.Status.RetryCount
+	}
+
+	if parent.Status.PodStatus != "" && changed == false {
+		status.PodStatus = parent.Status.PodStatus
+	}
+
+	if parent.Status.StartedAt != "" && changed == false {
+		status.StartedAt = parent.Status.StartedAt
+	}
+
+	if parent.Status.FinishedAt != "" && changed == false {
+		status.FinishedAt = parent.Status.FinishedAt
+	}
+
 	return &status
 }
 

@@ -16,6 +16,18 @@ const (
 	DEFAULT_POD_SERVICE_ACCOUNT = "terraform"
 )
 
+// Default max retries for failed pods
+const (
+	DEFAULT_POD_MAX_ATTEMPTS = 4
+)
+
+// Pod status for reporting pass/fail status of pod
+const (
+	// PodStatusFailed indicates that the max attempts for retry have failed.
+	PodStatusFailed = "FAILED"
+	PodStatusPassed = "COMPLETED"
+)
+
 // TerraformControllerState represents the string mapping of the possible controller states. See the const definition below for enumerated states.
 type TerraformControllerState string
 
@@ -26,8 +38,10 @@ const (
 	StateSourcePending = "SOURCE_PENDING"
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
 	StateProviderConfigPending = "PROVIDER_PENDING"
-	// StatePodRunning means  the controller is waiting for the terraform pod to complete.
+	// StatePodRunning means the controller is waiting for the terraform pod to complete.
 	StatePodRunning = "POD_RUNNING"
+	// StateRetry means a pod has failed and is being retried up to MaxAttempts times.
+	StateRetry = "POD_RETRY"
 )
 
 // ParentType represents the strign mapping to the possible parent types in the const below.
@@ -62,7 +76,11 @@ type TerraformControllerStatus struct {
 	ConfigMapHash  string `json:"configMapHash"`
 	StateCurrent   string `json:"stateCurrent"`
 	PodName        string `json:"podName"`
+	PodStatus      string `json:"podStatus"`
+	StartedAt      string `json:"startedAt"`
+	FinishedAt     string `json:"finishedAt"`
 	TFPlan         string `json:"planFile"`
+	RetryCount     int    `json:"retryCount"`
 }
 
 // Terraform is the custom resource definition structure.
@@ -83,6 +101,7 @@ type TerraformSpec struct {
 	Source          TerraformConfigSource                  `json:"source,omitempty"`
 	ConfigMapName   string                                 `json:"configMapName,omitempty"`
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
+	MaxAttempts     int                                    `json:"maxAttempts,omitempty"`
 }
 
 // TerraformSpecProviderConfig is the structure providing the provider credentials block.

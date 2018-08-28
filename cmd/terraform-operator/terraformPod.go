@@ -213,9 +213,6 @@ func makeOrdinalPodName(baseName string, parent *Terraform, children *TerraformC
 
 	i := -1
 	for name := range children.Pods {
-
-		myLog(parent, "DEBUG", fmt.Sprintf("Analyzing pod for ordinal index: %s", name))
-
 		if validName.MatchString(name) {
 			toks := strings.Split(name, "-")
 			num, _ := strconv.Atoi(toks[2])

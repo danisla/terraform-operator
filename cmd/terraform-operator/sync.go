@@ -32,6 +32,11 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 	case StatePodRunning:
 		// Call StatePodRunning handler
 		nextState, err = statePodRunning(parentType, parent, status, children, &desiredChildren)
+
+	case StateRetry:
+		// Call StateRetry handler
+		nextState, err = stateRetryHandler(parentType, parent, status, children, &desiredChildren)
+
 	}
 
 	if err != nil {
