@@ -1,5 +1,7 @@
 TAG = dev
 
+KANIKO_SA_KEY := ${HOME}/.kaniko-sa-key.json
+
 all: install
 
 install:
@@ -13,6 +15,9 @@ push: image
 
 install-metacontroller:
 	helm install --name metacontroller --namespace metacontroller charts/metacontroller
+
+kaniko-secret: $(KANIKO_SA_KEY)
+	kubectl create secret generic kaniko-secret --from-file=kaniko-secret=$(KANIKO_SA_KEY)
 
 metalogs:
 	kubectl -n metacontroller logs --tail=200 -f metacontroller-metacontroller-0
