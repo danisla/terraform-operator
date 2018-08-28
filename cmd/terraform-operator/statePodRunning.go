@@ -77,6 +77,8 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 		default:
 			myLog(parent, "INFO", fmt.Sprintf("Waiting for %s to complete.", pod.Name))
 		}
+	} else {
+		myLog(parent, "WARN", fmt.Sprintf("Pod not found in children while in state %s", status.StateCurrent))
 	}
 
 	return status.StateCurrent, nil

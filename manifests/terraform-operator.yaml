@@ -18,13 +18,15 @@ metadata:
   name: terraform-operator-plan
 spec:
   generateSelector: true
-  resyncPeriodSeconds: 2
+  resyncPeriodSeconds: 4
   parentResource:
     apiVersion: ctl.isla.solutions/v1
     resource: terraformplans
   childResources:
   - apiVersion: v1
     resource: pods
+  - apiVersion: v1
+    resource: configmaps
   hooks:
     sync:
       webhook:

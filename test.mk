@@ -1,6 +1,6 @@
-TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-tfplan.yaml
-TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-tfapply.yaml 
-TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-tfdestroy.yaml
+TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job1-src-tfplan.yaml
+TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job1-src-tfapply.yaml
+TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job1-src-tfdestroy.yaml
 
 IMAGE := "gcr.io/cloud-solutions-group/terraform-pod:latest"
 
@@ -49,7 +49,49 @@ data:
     }
 endef
 
-define TEST_JOB
+define TEST_JOB_SRC
+apiVersion: ctl.isla.solutions/v1
+kind: {{KIND}}
+metadata:
+  name: {{NAME}}
+spec:
+  image: {{IMAGE}}
+  imagePullPolicy: Always
+  backendBucket: {{BACKEND_BUCKET}}
+  backendPrefix: {{BACKEND_PREFIX}}
+  providerConfig:
+    google:
+      secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
+  source:
+    embedded: |-
+      variable "region" {
+        default = "us-central1"
+      }
+      provider "google" {
+        region = "$${var.region}"
+      }
+      resource "google_compute_project_metadata_item" "default" {
+        key = "tf-job-test"
+        value = "tf-operator-test"
+      }
+      data "google_client_config" "current" {}
+      output "project" {
+        value = "$${data.google_client_config.current.project}"
+      }
+      output "region" {
+        value = "$${var.region}"
+      }
+      output "metadata_key" {
+        value = "$${google_compute_project_metadata_item.default.key}"
+      }
+      output "metadata_value" {
+        value = "$${google_compute_project_metadata_item.default.value}"
+      }
+  tfvars:
+    region: us-central1
+endef
+
+define TEST_JOB_CM
 apiVersion: ctl.isla.solutions/v1
 kind: {{KIND}}
 metadata:
@@ -82,10 +124,10 @@ tests/job%-cm.yaml: project
         -e "s/{{PROJECT}}/$(PROJECT)/g" \
 	> $@
 
-export TEST_JOB
-tests/job%-tfplan.yaml: backend_bucket
+export TEST_JOB_CM
+tests/job%-cm-tfplan.yaml: backend_bucket
 	@mkdir -p tests
-	@echo "$${TEST_JOB}" | \
+	@echo "$${TEST_JOB_CM}" | \
 	sed -e "s/{{KIND}}/TerraformPlan/g" \
 	    -e "s/{{NAME}}/job$*/g" \
 	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
@@ -95,10 +137,10 @@ tests/job%-tfplan.yaml: backend_bucket
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
 	> $@
 
-export TEST_JOB
-tests/job%-tfapply.yaml: backend_bucket
+export TEST_JOB_CM
+tests/job%-cm-tfapply.yaml: backend_bucket
 	@mkdir -p tests
-	@echo "$${TEST_JOB}" | \
+	@echo "$${TEST_JOB_CM}" | \
 	sed -e "s/{{KIND}}/TerraformApply/g" \
 	    -e "s/{{NAME}}/job$*/g" \
 	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
@@ -108,10 +150,10 @@ tests/job%-tfapply.yaml: backend_bucket
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
 	> $@
 
-export TEST_JOB
-tests/job%-tfdestroy.yaml: backend_bucket
+export TEST_JOB_CM
+tests/job%-cm-tfdestroy.yaml: backend_bucket
 	@mkdir -p tests
-	@echo "$${TEST_JOB}" | \
+	@echo "$${TEST_JOB_CM}" | \
 	sed -e "s/{{KIND}}/TerraformDestroy/g" \
 	    -e "s/{{NAME}}/job$*/g" \
 	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
@@ -119,6 +161,42 @@ tests/job%-tfdestroy.yaml: backend_bucket
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
+	> $@
+
+export TEST_JOB_SRC
+tests/job%-src-tfplan.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_SRC}" | \
+	sed -e "s/{{KIND}}/TerraformPlan/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	> $@
+
+export TEST_JOB_SRC
+tests/job%-src-tfapply.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_SRC}" | \
+	sed -e "s/{{KIND}}/TerraformApply/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	> $@
+
+export TEST_JOB_SRC
+tests/job%-src-tfdestroy.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_SRC}" | \
+	sed -e "s/{{KIND}}/TerraformDestroy/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	> $@
 
 test-artifacts: $(addprefix tests/,$(TEST_ARTIFACTS))

@@ -8,11 +8,18 @@ import (
 
 func stateIdleHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
 
+	if active, _, _, _ := getPodStatus(children.Pods); active > 0 {
+		// Pods should only be active in the StatePodRunning or StateRetry states.
+		return StateNone, fmt.Errorf("re-sync collision")
+	}
+
 	// Map of provider config secret names to list of key names.
 	providerConfigKeys := make(map[string][]string, 0)
 
 	// Map of sourceData key names, used to mount as paths in container.
 	sourceDataKeys := make([]string, 0)
+
+	configMapName := ""
 
 	configMapHash := status.ConfigMapHash
 
@@ -32,6 +39,9 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 
 	// Check for ConfigMap source. If not yet available, transition to StateSourcePending
 	if parent.Spec.Source.ConfigMap.Name != "" {
+		myLog(parent, "INFO", fmt.Sprintf("Using Terraform source from ConfigMap: %s", parent.Spec.Source.ConfigMap.Name))
+		configMapName = parent.Spec.Source.ConfigMap.Name
+
 		sourceData, err := getConfigMapSourceData(parent.ObjectMeta.Namespace, parent.Spec.Source.ConfigMap.Name)
 		if err != nil {
 			// Wait for configmap to become available.
@@ -49,6 +59,22 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		if err != nil {
 			return status.StateCurrent, err
 		}
+	} else if parent.Spec.Source.Embedded != "" {
+		myLog(parent, "INFO", "Using Terraform source embedded in spec")
+
+		// ConfigMap name in the form of: PARENT_NAME-PARENT_TYPE-src
+		configMapName = fmt.Sprintf("%s-%s-src", parent.Name, parentType)
+
+		var cm corev1.ConfigMap
+		configMapHash, cm = makeTerraformSourceConfigMap(configMapName, parent.Spec.Source.Embedded)
+
+		*desiredChildren = append(*desiredChildren, cm)
+
+		myLog(parent, "INFO", fmt.Sprintf("Created ConfigMap: %s", cm.Name))
+
+	} else {
+		myLog(parent, "WARN", "No terraform source defined. Deadend.")
+		return status.StateCurrent, nil
 	}
 
 	// Get the image and pull policy (or default) from the spec.
@@ -60,19 +86,13 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		ImagePullPolicy:    imagePullPolicy,
 		Namespace:          parent.Namespace,
 		ProjectID:          config.Project,
-		ConfigMapName:      parent.Spec.Source.ConfigMap.Name,
+		ConfigMapName:      configMapName,
 		ProviderConfigKeys: providerConfigKeys,
 		SourceDataKeys:     sourceDataKeys,
-		ConfigMapHash:      status.ConfigMapHash,
+		ConfigMapHash:      configMapHash,
 		BackendBucket:      parent.Spec.BackendBucket,
 		BackendPrefix:      parent.Spec.BackendPrefix,
 		TFVars:             parent.Spec.TFVars,
-	}
-
-	// If current pod is still running, do not create a new pod.
-	if active, _, _ := getPodStatus(children.Pods); active > 0 {
-		myLog(parent, "WARN", "Waiting for active pod to complete before creating new one.")
-		return StatePodRunning, nil
 	}
 
 	status.ConfigMapHash = configMapHash
@@ -103,13 +123,14 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	status.Duration = ""
 	status.PodStatus = ""
 
-	myLog(parent, "INFO", fmt.Sprintf("Created pod: %s", pod.Name))
+	myLog(parent, "INFO", fmt.Sprintf("Created Pod: %s", pod.Name))
 
 	// Transition to StatePodRunning
 	return StatePodRunning, nil
 }
 
-func getPodStatus(pods map[string]corev1.Pod) (int, int, int) {
+func getPodStatus(pods map[string]corev1.Pod) (int, int, int, string) {
+	lastActiveName := ""
 	active := 0
 	succeeded := 0
 	failed := 0
@@ -120,8 +141,9 @@ func getPodStatus(pods map[string]corev1.Pod) (int, int, int) {
 		case corev1.PodFailed:
 			failed++
 		default:
+			lastActiveName = pod.Name
 			active++
 		}
 	}
-	return active, succeeded, failed
+	return active, succeeded, failed, lastActiveName
 }

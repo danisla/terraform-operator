@@ -5,9 +5,6 @@ import "fmt"
 func sync(parentType ParentType, parent *Terraform, children *TerraformControllerRequestChildren) (*TerraformControllerStatus, *[]interface{}, error) {
 	status := makeStatus(parent, children)
 	currState := status.StateCurrent
-	if currState == "" {
-		currState = StateIdle
-	}
 	desiredChildren := make([]interface{}, 0)
 	nextState := currState[0:1] + currState[1:] // string copy of currState
 
@@ -15,6 +12,15 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 
 	var err error
 	switch currState {
+	case StateNone:
+		if len(children.Pods) > 0 {
+			// Children pods should only be populated after the StateIdle handler has been run at least once.
+			err = fmt.Errorf("re-sync collision")
+		} else {
+			// Call StateIdle handler
+			nextState, err = stateIdleHandler(parentType, parent, status, children, &desiredChildren)
+		}
+
 	case StateIdle:
 		if changed {
 			// Call StateIdle handler
@@ -41,6 +47,11 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 
 	if err != nil {
 		return status, &desiredChildren, err
+	}
+
+	// Claim the configmaps.
+	for _, o := range children.ConfigMaps {
+		desiredChildren = append(desiredChildren, o)
 	}
 
 	// Claim the Pods.

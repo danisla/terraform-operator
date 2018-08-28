@@ -9,7 +9,7 @@ import (
 
 func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren) *TerraformControllerStatus {
 	status := TerraformControllerStatus{
-		StateCurrent: StateIdle,
+		StateCurrent: StateNone,
 	}
 
 	changed := false
@@ -81,13 +81,13 @@ func changeDetected(parent *Terraform, children *TerraformControllerRequestChild
 	if status.StateCurrent == StateIdle {
 
 		// Changed if parent spec changes
-		if status.LastAppliedSig != calcParentSig(parent, "") {
+		if status.LastAppliedSig != "" && status.LastAppliedSig != calcParentSig(parent, "") {
 			myLog(parent, "DEBUG", "Changed because parent sig different")
 			changed = true
 		}
 
 		// Changed if config map source data changes.
-		if parent.Spec.Source.ConfigMap.Trigger {
+		if parent.Spec.Source.ConfigMap.Name != "" && parent.Spec.Source.ConfigMap.Trigger && status.ConfigMapHash != "" {
 			specData, err := getConfigMapSourceData(parent.ObjectMeta.Namespace, parent.Spec.Source.ConfigMap.Name)
 			if err != nil {
 				changed = true

@@ -157,10 +157,15 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 	})
 
 	// TFVars
+	var tfVarEnv = regexp.MustCompile(`^TF_VAR_.*$`)
 	for k, v := range tfp.TFVars {
+		varName := v
+		if !tfVarEnv.MatchString(v) {
+			varName = fmt.Sprintf("TF_VAR_%s", v)
+		}
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  k,
-			Value: v,
+			Value: varName,
 		})
 	}
 
@@ -225,4 +230,20 @@ func makeOrdinalPodName(baseName string, parent *Terraform, children *TerraformC
 	}
 	i++
 	return fmt.Sprintf("%s-%s-%d", parent.Name, baseName, i)
+}
+
+func makeTerraformSourceConfigMap(name string, data string) (string, corev1.ConfigMap) {
+	cm := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Data: map[string]string{
+			"main.tf": data,
+		},
+	}
+
+	hash, _ := toSha1(data)
+	return hash, cm
 }

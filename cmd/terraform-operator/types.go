@@ -32,6 +32,8 @@ const (
 type TerraformControllerState string
 
 const (
+	// StateNone is the inital state for a new spec.
+	StateNone = "NONE"
 	// StateIdle means there are no more changes pending
 	StateIdle = "IDLE"
 	// StateSourcePending means the controller is waiting for the source ConfigMap to become available.
@@ -67,7 +69,8 @@ type SyncResponse struct {
 
 // TerraformControllerRequestChildren is the children definition passed by the CompositeController request for the Terraform controller.
 type TerraformControllerRequestChildren struct {
-	Pods map[string]corev1.Pod `json:"Pod.v1"`
+	Pods       map[string]corev1.Pod       `json:"Pod.v1"`
+	ConfigMaps map[string]corev1.ConfigMap `json:"ConfigMap.v1"`
 }
 
 // TerraformControllerStatus is the status structure for the custom resource
@@ -113,6 +116,7 @@ type TerraformSpecProviderConfig struct {
 // TerraformConfigSource is the structure providing the source for terraform configs.
 type TerraformConfigSource struct {
 	ConfigMap TerraformSourceConfigMap `json:"configMap,omitempty"`
+	Embedded  string                   `json:"embedded,omitempty"`
 }
 
 // TerraformSourceConfigMap is the spec defining a config map source for terraform config.
