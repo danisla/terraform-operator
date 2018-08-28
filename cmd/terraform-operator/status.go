@@ -60,6 +60,18 @@ func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren)
 		status.Duration = parent.Status.Duration
 	}
 
+	if parent.Status.Workspace != "" && changed == false {
+		status.Workspace = parent.Status.Workspace
+	}
+
+	if parent.Status.StateFile != "" && changed == false {
+		status.StateFile = parent.Status.StateFile
+	}
+
+	if parent.Status.TFOutput != nil && changed == false {
+		status.TFOutput = parent.Status.TFOutput
+	}
+
 	return &status
 }
 

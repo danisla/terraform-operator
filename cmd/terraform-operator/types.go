@@ -75,16 +75,19 @@ type TerraformControllerRequestChildren struct {
 
 // TerraformControllerStatus is the status structure for the custom resource
 type TerraformControllerStatus struct {
-	LastAppliedSig string `json:"lastAppliedSig"`
-	ConfigMapHash  string `json:"configMapHash"`
-	StateCurrent   string `json:"stateCurrent"`
-	PodName        string `json:"podName"`
-	PodStatus      string `json:"podStatus"`
-	StartedAt      string `json:"startedAt"`
-	FinishedAt     string `json:"finishedAt"`
-	Duration       string `json:"duration"`
-	TFPlan         string `json:"planFile"`
-	RetryCount     int    `json:"retryCount"`
+	LastAppliedSig string                        `json:"lastAppliedSig"`
+	ConfigMapHash  string                        `json:"configMapHash"`
+	StateCurrent   string                        `json:"stateCurrent"`
+	PodName        string                        `json:"podName"`
+	PodStatus      string                        `json:"podStatus"`
+	StartedAt      string                        `json:"startedAt"`
+	FinishedAt     string                        `json:"finishedAt"`
+	Duration       string                        `json:"duration"`
+	TFPlan         string                        `json:"planFile"`
+	TFOutput       map[string]TerraformOutputVar `json:"outputs"`
+	RetryCount     int                           `json:"retryCount"`
+	Workspace      string                        `json:"workspace"`
+	StateFile      string                        `json:"stateFile"`
 }
 
 // Terraform is the custom resource definition structure.
@@ -129,4 +132,11 @@ type TerraformSourceConfigMap struct {
 type TerraformSpecCredentials struct {
 	Name string `json:"name,omitempty"`
 	Key  string `json:"key,omitempty"`
+}
+
+// TerraformOutputVar is the structure of a terraform output variable from `terraform output -json`
+type TerraformOutputVar struct {
+	Sensitive bool   `json:"sensitive,omitempty"`
+	Type      string `json:"type,omitempty"`
+	Value     string `json:"value,omitempty"`
 }

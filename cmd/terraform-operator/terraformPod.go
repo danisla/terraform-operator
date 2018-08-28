@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	PLAN_POD_CMD = "/run-terraform-plan.sh"
+	PLAN_POD_CMD  = "/run-terraform-plan.sh"
+	APPLY_POD_CMD = "/run-terraform-apply.sh"
 )
 
 // TFPod contains the data needed to create the Terraform Pod
@@ -21,6 +22,7 @@ type TFPod struct {
 	ImagePullPolicy    corev1.PullPolicy
 	Namespace          string
 	ProjectID          string
+	Workspace          string
 	ConfigMapName      string
 	ProviderConfigKeys map[string][]string
 	SourceDataKeys     []string
@@ -146,7 +148,7 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 	})
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  "WORKSPACE",
-		Value: fmt.Sprintf("%s-%s", tfp.Namespace, podName),
+		Value: tfp.Workspace,
 	})
 
 	// Output module
@@ -243,4 +245,8 @@ func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
 		},
 	}
 	return cm
+}
+
+func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {
+	return fmt.Sprintf("gs://%s/%s/%s.tfstate", backendBucket, backendPrefix, workspace)
 }

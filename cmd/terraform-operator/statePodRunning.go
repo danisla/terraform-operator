@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -40,9 +41,30 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 		switch pod.Status.Phase {
 		case corev1.PodSucceeded:
 			// Extract terraform plan path from annotation.
-			if plan, ok := pod.Annotations["terraform-plan"]; ok == true {
-				myLog(parent, "INFO", fmt.Sprintf("Terraform plan from %s: %s", pod.Name, plan))
-				status.TFPlan = plan
+			switch parentType {
+			case ParentPlan:
+				// Populate status.TFPlan from completed pod annotation.
+				if plan, ok := pod.Annotations["terraform-plan"]; ok == true {
+					myLog(parent, "INFO", fmt.Sprintf("Terraform plan from %s: %s", pod.Name, plan))
+					status.TFPlan = plan
+				} else {
+					myLog(parent, "ERROR", fmt.Sprintf("terraform-plan annotation not found on successful pod completion: %s", pod.Name))
+				}
+			case ParentApply:
+				// Populate status.TFOutput map from completed pod annotation.
+				if output, ok := pod.Annotations["terraform-output"]; ok == true {
+					outputVars, err := makeOutputVars(output)
+					if err != nil {
+						myLog(parent, "ERROR", fmt.Sprintf("Failed to parse output vars on pod: %s: %v", pod.Name, err))
+						return StateIdle, nil
+					}
+					status.TFOutput = outputVars
+
+					myLog(parent, "INFO", fmt.Sprintf("Extracted %d output variables.", len(outputVars)))
+
+				} else {
+					myLog(parent, "ERROR", fmt.Sprintf("terraform-plan annotation not found on successful pod completion: %s", pod.Name))
+				}
 			}
 
 			status.PodStatus = PodStatusPassed
@@ -90,4 +112,10 @@ func getPodMaxAttempts(parent *Terraform) int {
 		maxAttempts = parent.Spec.MaxAttempts
 	}
 	return maxAttempts
+}
+
+func makeOutputVars(data string) (map[string]TerraformOutputVar, error) {
+	var outputVars map[string]TerraformOutputVar
+	err := json.Unmarshal([]byte(data), &outputVars)
+	return outputVars, err
 }

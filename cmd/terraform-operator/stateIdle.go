@@ -93,6 +93,7 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		ImagePullPolicy:    imagePullPolicy,
 		Namespace:          parent.Namespace,
 		ProjectID:          config.Project,
+		Workspace:          fmt.Sprintf("%s-%s", parent.Namespace, podName),
 		ConfigMapName:      configMapName,
 		ProviderConfigKeys: providerConfigKeys,
 		SourceDataKeys:     sourceDataKeys,
@@ -110,6 +111,8 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	switch parentType {
 	case ParentPlan:
 		pod, err = tfp.makeTerraformPod(podName, []string{PLAN_POD_CMD})
+	case ParentApply:
+		pod, err = tfp.makeTerraformPod(podName, []string{APPLY_POD_CMD})
 	default:
 		// This should not happen.
 		myLog(parent, "WARN", fmt.Sprintf("Unhandled parentType in StateIdle: %s", parentType))
@@ -122,6 +125,8 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	*desiredChildren = append(*desiredChildren, pod)
 
 	status.PodName = pod.Name
+	status.Workspace = tfp.Workspace
+	status.StateFile = makeStateFilePath(tfp.BackendBucket, tfp.BackendPrefix, tfp.Workspace)
 	status.StartedAt = ""
 	status.FinishedAt = ""
 	status.Duration = ""

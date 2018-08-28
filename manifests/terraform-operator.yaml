@@ -1,3 +1,4 @@
+### BEGIN TerraformPlan CRD and CompositeController ###
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -31,71 +32,45 @@ spec:
     sync:
       webhook:
         url: http://terraform-operator.metacontroller/sync
+### END TerraformPlan CRD and CompositeController ###
 ---
-# apiVersion: apiextensions.k8s.io/v1beta1
-# kind: CustomResourceDefinition
-# metadata:
-#   name: terraformapplys.ctl.isla.solutions
-# spec:
-#   group: ctl.isla.solutions
-#   version: v1
-#   scope: Namespaced
-#   names:
-#     plural: terraformapplys
-#     singular: terraformapply
-#     kind: TerraformApply
-#     shortNames: ["tfapply"]
-# ---
-# apiVersion: apiextensions.k8s.io/v1beta1
-# kind: CustomResourceDefinition
-# metadata:
-#   name: terraformdestroys.ctl.isla.solutions
-# spec:
-#   group: ctl.isla.solutions
-#   version: v1
-#   scope: Namespaced
-#   names:
-#     plural: terraformdestroys
-#     singular: terraformdestroy
-#     kind: TerraformDestroy
-#     shortNames: ["tfdestroy"]
-# ---
-# apiVersion: metacontroller.k8s.io/v1alpha1
-# kind: CompositeController
-# metadata:
-#   name: terraform-operator-apply
-# spec:
-#   generateSelector: true
-#   resyncPeriodSeconds: 2
-#   parentResource:
-#     apiVersion: ctl.isla.solutions/v1
-#     resource: terraformapplys
-#   childResources:
-#   - apiVersion: batch/v1
-#     resource: jobs
-#   hooks:
-#     sync:
-#       webhook:
-#         url: http://terraform-operator.metacontroller/sync
-# ---
-# apiVersion: metacontroller.k8s.io/v1alpha1
-# kind: CompositeController
-# metadata:
-#   name: terraform-operator-destroy
-# spec:
-#   generateSelector: true
-#   resyncPeriodSeconds: 2
-#   parentResource:
-#     apiVersion: ctl.isla.solutions/v1
-#     resource: terraformdestroys
-#   childResources:
-#   - apiVersion: batch/v1
-#     resource: jobs
-#   hooks:
-#     sync:
-#       webhook:
-#         url: http://terraform-operator.metacontroller/sync
-# ---
+### BEGIN TerraformApply CRD and CompositeController ###
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: terraformapplys.ctl.isla.solutions
+spec:
+  group: ctl.isla.solutions
+  version: v1
+  scope: Namespaced
+  names:
+    plural: terraformapplys
+    singular: terraformapply
+    kind: TerraformApply
+    shortNames: ["tfapply"]
+---
+apiVersion: metacontroller.k8s.io/v1alpha1
+kind: CompositeController
+metadata:
+  name: terraform-operator-apply
+spec:
+  generateSelector: true
+  resyncPeriodSeconds: 4
+  parentResource:
+    apiVersion: ctl.isla.solutions/v1
+    resource: terraformapplys
+  childResources:
+  - apiVersion: v1
+    resource: pods
+  - apiVersion: v1
+    resource: configmaps
+  hooks:
+    sync:
+      webhook:
+        url: http://terraform-operator.metacontroller/sync
+### END TerraformApply CRD and CompositeController ###
+---
+# Controller deployment
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
