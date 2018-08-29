@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func stateIdleHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
+func stateIdle(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
 
 	if active, _, _, _ := getPodStatus(children.Pods); active > 0 {
 		// Pods should only be active in the StatePodRunning or StateRetry states.
@@ -56,11 +56,11 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		err = validateConfigMapSource(sourceData)
 		if err != nil {
 			myLog(parent, "ERROR", fmt.Sprintf("ConfigMap source data is invalid: %v", err))
-			return status.StateCurrent, nil
+			return StateIdle, nil
 		}
 		configMapHash, err = toSha1(sourceData)
 		if err != nil {
-			return status.StateCurrent, err
+			return StateIdle, err
 		}
 	} else if parent.Spec.Source.Embedded != "" {
 		myLog(parent, "INFO", "Using Terraform source embedded in spec")
@@ -81,23 +81,63 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 
 	} else {
 		myLog(parent, "WARN", "No terraform source defined. Deadend.")
-		return status.StateCurrent, nil
+		return StateIdle, nil
 	}
 
 	// Check for TFInputs
+	var tfInputVars map[string]string
 	if len(parent.Spec.TFInputs) > 0 {
+		allFound := true
 		for _, tfinput := range parent.Spec.TFInputs {
 			tfapply, err := getTerraformApply(parent.ObjectMeta.Namespace, tfinput.Name)
 			if err != nil {
-				myLog(parent, "DEBUG", fmt.Sprintf("Error fetching TerraformAppy/%s: %v", tfinput.Name, err))
-
 				// Wait for TerraformApply to become available
 				return StateTFInputPending, nil
 			}
-			for k, v := range tfapply.Status.TFOutput {
-				myLog(parent, "DEBUG", fmt.Sprintf("Found input tfapply from '%s' var: %s=%s", tfapply.Name, k, v.Value))
+			if len(tfinput.VarMap) > 0 {
+				for srcVar := range tfinput.VarMap {
+					found := false
+					for k := range tfapply.Status.TFOutput {
+						if k == srcVar {
+							found = true
+							break
+						}
+					}
+					if !found {
+						myLog(parent, "WARN", fmt.Sprintf("Input variable from TerraformApply/%s not found: %s", tfinput.Name, srcVar))
+					}
+					allFound = allFound && found
+				}
+			} else {
+				myLog(parent, "INFO", fmt.Sprintf("Waiting for output variables from TerraformApply/%s", tfinput.Name))
+				return StateTFInputPending, nil
+			}
+			if !allFound {
+				return StateTFInputPending, nil
+			}
+
+			for src, dest := range tfinput.VarMap {
+				myLog(parent, "DEBUG", fmt.Sprintf("Creating var mapping from %s/%s -> TF_VAR_%s", tfinput.Name, src, dest))
+				tfInputVars[dest] = fmt.Sprintf("TF_VAR_%s", tfapply.Status.TFOutput[src].Value)
 			}
 		}
+	}
+
+	// Check for TFPlan
+	var tfplanFile string
+	if parent.Spec.TFPlan != "" {
+		tfplan, err := getTerraformPlan(parent.ObjectMeta.Namespace, parent.Spec.TFPlan)
+		if err != nil {
+			// Wait for TerraformPlan to become available
+			return StateTFPlanPending, nil
+		}
+		if tfplan.Status.PodStatus != PodStatusPassed || tfplan.Status.TFPlan == "" {
+			myLog(parent, "INFO", fmt.Sprintf("Waiting for TerraformPlan/%s TFPlan", tfplan.Name))
+			return StateTFPlanPending, nil
+		}
+		tfplanFile = tfplan.Status.TFPlan
+
+		myLog(parent, "INFO", fmt.Sprintf("Using plan from TerraformPlan/%s: '%s'", tfplan.Name, tfplanFile))
 	}
 
 	// Get the image and pull policy (or default) from the spec.
@@ -109,13 +149,15 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		ImagePullPolicy:    imagePullPolicy,
 		Namespace:          parent.Namespace,
 		ProjectID:          config.Project,
-		Workspace:          fmt.Sprintf("%s-%s", parent.Namespace, podName),
+		Workspace:          fmt.Sprintf("%s-%s", parent.Namespace, parent.Name),
 		ConfigMapName:      configMapName,
 		ProviderConfigKeys: providerConfigKeys,
 		SourceDataKeys:     sourceDataKeys,
 		ConfigMapHash:      configMapHash,
 		BackendBucket:      parent.Spec.BackendBucket,
 		BackendPrefix:      parent.Spec.BackendPrefix,
+		TFPlan:             tfplanFile,
+		TFInputs:           tfInputVars,
 		TFVars:             parent.Spec.TFVars,
 	}
 
@@ -129,13 +171,15 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		pod, err = tfp.makeTerraformPod(podName, []string{PLAN_POD_CMD})
 	case ParentApply:
 		pod, err = tfp.makeTerraformPod(podName, []string{APPLY_POD_CMD})
+	case ParentDestroy:
+		pod, err = tfp.makeTerraformPod(podName, []string{DESTROY_POD_CMD})
 	default:
 		// This should not happen.
 		myLog(parent, "WARN", fmt.Sprintf("Unhandled parentType in StateIdle: %s", parentType))
 	}
 	if err != nil {
 		myLog(parent, "ERROR", fmt.Sprintf("Failed to generate terraform pod: %v", err))
-		return status.StateCurrent, nil
+		return StateIdle, nil
 	}
 
 	*desiredChildren = append(*desiredChildren, pod)
@@ -143,6 +187,8 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 	status.PodName = pod.Name
 	status.Workspace = tfp.Workspace
 	status.StateFile = makeStateFilePath(tfp.BackendBucket, tfp.BackendPrefix, tfp.Workspace)
+	status.TFPlan = ""
+	status.TFOutput = make(map[string]TerraformOutputVar, 0)
 	status.StartedAt = ""
 	status.FinishedAt = ""
 	status.Duration = ""

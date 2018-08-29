@@ -8,12 +8,12 @@ import (
 
 const DEFAULT_RETRY_BACKOFF_SCALE = 5.0
 
-func stateRetryHandler(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
+func stateRetry(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
 
 	finishedAt, err := time.Parse(time.RFC3339, status.FinishedAt)
 	if err != nil {
 		myLog(parent, "ERROR", fmt.Sprintf("Failed to parse status.FinishedAt: %v", err))
-		return status.StateCurrent, nil
+		return StateRetry, nil
 	}
 
 	backoff := computeExponentialBackoff(status.RetryCount, DEFAULT_RETRY_BACKOFF_SCALE)
@@ -24,7 +24,7 @@ func stateRetryHandler(parentType ParentType, parent *Terraform, status *Terrafo
 		return StateWaitComplete, nil
 	}
 
-	return status.StateCurrent, nil
+	return StateRetry, nil
 }
 
 func computeExponentialBackoff(retryCount int, scaleFactor float64) float64 {

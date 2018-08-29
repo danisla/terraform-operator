@@ -1,5 +1,5 @@
 TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml job3-cm-tfplan-inputs.yaml
-TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job2-src-tfapply.yaml
+TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job1-cm-tfapply-tfplan.yaml job2-src-tfapply.yaml
 TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job2-src-tfdestroy.yaml
 
 IMAGE := "gcr.io/cloud-solutions-group/terraform-pod:latest"
@@ -109,6 +109,7 @@ spec:
       name: {{CM_NAME}}
       trigger: true
   configMapName: {{CM_NAME}}
+  {{TFPLAN}}
   tfvars:
     region: us-central1
 endef
@@ -162,6 +163,7 @@ tests/job%-cm-tfplan.yaml: backend_bucket
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
+	    -e "s/{{TFPLAN}}//g" \
 	> $@
 
 export TEST_JOB_CM
@@ -175,6 +177,21 @@ tests/job%-cm-tfapply.yaml: backend_bucket
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
+	    -e "s/{{TFPLAN}}//g" \
+	> $@
+
+export TEST_JOB_CM
+tests/job%-cm-tfapply-tfplan.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_CM}" | \
+	sed -e "s/{{KIND}}/TerraformApply/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{CM_NAME}}/job$*-tf/g" \
+	    -e "s/{{TFPLAN}}/tfplan: job$*/g" \
 	> $@
 
 export TEST_JOB_CM
@@ -188,6 +205,7 @@ tests/job%-cm-tfdestroy.yaml: backend_bucket
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
+	    -e "s/{{TFPLAN}}//g" \
 	> $@
 ### END Tests with ConfigMap source ###
 

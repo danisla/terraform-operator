@@ -22,5 +22,5 @@ func stateProviderConfigPending(parentType ParentType, parent *Terraform, status
 		return StateWaitComplete, nil
 	}
 
-	return status.StateCurrent, nil
+	return StateProviderConfigPending, nil
 }

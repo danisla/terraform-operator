@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	PLAN_POD_CMD  = "/run-terraform-plan.sh"
-	APPLY_POD_CMD = "/run-terraform-apply.sh"
+	PLAN_POD_CMD    = "/run-terraform-plan.sh"
+	APPLY_POD_CMD   = "/run-terraform-apply.sh"
+	DESTROY_POD_CMD = "/run-terraform-destroy.sh"
 )
 
 // TFPod contains the data needed to create the Terraform Pod
@@ -29,6 +30,8 @@ type TFPod struct {
 	ConfigMapHash      string
 	BackendBucket      string
 	BackendPrefix      string
+	TFPlan             string
+	TFInputs           map[string]string
 	TFVars             map[string]string
 }
 
@@ -160,13 +163,29 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 	// TFVars
 	var tfVarEnv = regexp.MustCompile(`^TF_VAR_.*$`)
 	for k, v := range tfp.TFVars {
-		varName := v
+		varName := k
 		if !tfVarEnv.MatchString(v) {
-			varName = fmt.Sprintf("TF_VAR_%s", v)
+			varName = fmt.Sprintf("TF_VAR_%s", varName)
 		}
 		envVars = append(envVars, corev1.EnvVar{
+			Name:  varName,
+			Value: v,
+		})
+	}
+
+	// Vars from TerraformApply outputs
+	for k, v := range tfp.TFInputs {
+		envVars = append(envVars, corev1.EnvVar{
 			Name:  k,
-			Value: varName,
+			Value: v,
+		})
+	}
+
+	// TF Plan var to apply existing plan.
+	if tfp.TFPlan != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "TFPLAN",
+			Value: tfp.TFPlan,
 		})
 	}
 

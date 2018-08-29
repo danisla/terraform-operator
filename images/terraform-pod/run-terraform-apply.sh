@@ -4,6 +4,21 @@ set -x
 set -e
 set -o pipefail
 
+function downloadPlan() {
+  local tfplan=$1
+  local dest=$2
+
+  SA_JSON=${PWD}/.terraform/service_account.json
+  cat > ${SA_JSON} <<EOF
+$GOOGLE_CREDENTIALS
+EOF
+
+  gcloud auth activate-service-account --key-file=${SA_JSON}
+  gcloud config set project $PROJECT_ID
+
+  gsutil cp ${tfplan} ${dest}
+}
+
 terraform version
 
 cat > backend.tf <<EOF
@@ -17,7 +32,13 @@ EOF
 
 terraform init -upgrade=true
 terraform workspace select ${WORKSPACE} || terraform workspace new ${WORKSPACE}
-terraform plan -input=false -out terraform.tfplan
+
+if [[ -n ${TFPLAN+x} ]]; then
+    downloadPlan ${TFPLAN} terraform.tfplan
+else
+    terraform plan -input=false -out terraform.tfplan
+fi
+
 terraform apply -no-color -input=false -auto-approve terraform.tfplan
 
 function publishOutputs() {

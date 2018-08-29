@@ -15,5 +15,5 @@ func stateSourcePending(parentType ParentType, parent *Terraform, status *Terraf
 		return StateWaitComplete, nil
 	}
 
-	return status.StateCurrent, nil
+	return StateSourcePending, nil
 }

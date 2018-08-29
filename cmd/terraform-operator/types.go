@@ -42,6 +42,8 @@ const (
 	StateSourcePending = "SOURCE_PENDING"
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
 	StateProviderConfigPending = "PROVIDER_PENDING"
+	// StateTFPlanPending means the controller is waiting for tfplan object.
+	StateTFPlanPending = "TFPLAN_PENDING"
 	// StateTFInputPending means the controller is waiting for one or more tfapply objects.
 	StateTFInputPending = "TFINPUT_PENDING"
 	// StatePodRunning means the controller is waiting for the terraform pod to complete.
@@ -111,6 +113,7 @@ type TerraformSpec struct {
 	ProviderConfig  map[string]TerraformSpecProviderConfig `json:"providerConfig,omitempty"`
 	Source          TerraformConfigSource                  `json:"source,omitempty"`
 	ConfigMapName   string                                 `json:"configMapName,omitempty"`
+	TFPlan          string                                 `json:"tfplan,omitempty"`
 	TFInputs        []TerraformConfigInputs                `json:"tfinputs,omitempty"`
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
 	MaxAttempts     int                                    `json:"maxAttempts,omitempty"`

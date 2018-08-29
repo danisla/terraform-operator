@@ -44,7 +44,7 @@ func stateTFInputPending(parentType ParentType, parent *Terraform, status *Terra
 		return StateWaitComplete, nil
 	}
 
-	return status.StateCurrent, nil
+	return StateTFInputPending, nil
 }
 
 func getTerraformApply(namespace string, name string) (Terraform, error) {

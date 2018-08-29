@@ -45,7 +45,6 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 			case ParentPlan:
 				// Populate status.TFPlan from completed pod annotation.
 				if plan, ok := pod.Annotations["terraform-plan"]; ok == true {
-					myLog(parent, "INFO", fmt.Sprintf("Terraform plan from %s: %s", pod.Name, plan))
 					status.TFPlan = plan
 				} else {
 					myLog(parent, "ERROR", fmt.Sprintf("terraform-plan annotation not found on successful pod completion: %s", pod.Name))
@@ -103,7 +102,7 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 		myLog(parent, "WARN", fmt.Sprintf("Pod not found in children while in state %s", status.StateCurrent))
 	}
 
-	return status.StateCurrent, nil
+	return StatePodRunning, nil
 }
 
 func getPodMaxAttempts(parent *Terraform) int {
