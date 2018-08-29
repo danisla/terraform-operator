@@ -108,7 +108,6 @@ spec:
     configMap:
       name: {{CM_NAME}}
       trigger: true
-  configMapName: {{CM_NAME}}
   {{TFPLAN}}
   tfvars:
     region: us-central1
@@ -131,7 +130,6 @@ spec:
     configMap:
       name: {{CM_NAME}}
       trigger: true
-  configMapName: {{CM_NAME}}
   tfinputs:
   - name: {{TFAPPLY_NAME}}
     varMap:

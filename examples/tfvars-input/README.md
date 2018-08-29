@@ -158,8 +158,8 @@ spec:
       network_region: region
       network_name: network_name
   tfvars:
-    region: us-central1
-    mig_size: 2
+    region: "us-central1"
+    mig_size: "2"
 EOF
 cat example-mig-tfapply.yaml
 ```

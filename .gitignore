@@ -2,4 +2,4 @@
 vendor/
 tests/
 tmp/
-examples/*/example*.yaml
+examples/*/example*-tf*.yaml

@@ -85,7 +85,7 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformContro
 	}
 
 	// Check for TFInputs
-	var tfInputVars map[string]string
+	tfInputVars := make(map[string]string, 0)
 	if len(parent.Spec.TFInputs) > 0 {
 		allFound := true
 		for _, tfinput := range parent.Spec.TFInputs {

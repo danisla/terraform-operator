@@ -112,7 +112,6 @@ type TerraformSpec struct {
 	BackendPrefix   string                                 `json:"backendPrefix,omitempty"`
 	ProviderConfig  map[string]TerraformSpecProviderConfig `json:"providerConfig,omitempty"`
 	Source          TerraformConfigSource                  `json:"source,omitempty"`
-	ConfigMapName   string                                 `json:"configMapName,omitempty"`
 	TFPlan          string                                 `json:"tfplan,omitempty"`
 	TFInputs        []TerraformConfigInputs                `json:"tfinputs,omitempty"`
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
