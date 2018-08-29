@@ -84,6 +84,22 @@ func stateIdleHandler(parentType ParentType, parent *Terraform, status *Terrafor
 		return status.StateCurrent, nil
 	}
 
+	// Check for TFInputs
+	if len(parent.Spec.TFInputs) > 0 {
+		for _, tfinput := range parent.Spec.TFInputs {
+			tfapply, err := getTerraformApply(parent.ObjectMeta.Namespace, tfinput.Name)
+			if err != nil {
+				myLog(parent, "DEBUG", fmt.Sprintf("Error fetching TerraformAppy/%s: %v", tfinput.Name, err))
+
+				// Wait for TerraformApply to become available
+				return StateTFInputPending, nil
+			}
+			for k, v := range tfapply.Status.TFOutput {
+				myLog(parent, "DEBUG", fmt.Sprintf("Found input tfapply from '%s' var: %s=%s", tfapply.Name, k, v.Value))
+			}
+		}
+	}
+
 	// Get the image and pull policy (or default) from the spec.
 	image, imagePullPolicy := getImageAndPullPolicy(parent)
 

@@ -11,8 +11,8 @@ func stateSourcePending(parentType ParentType, parent *Terraform, status *Terraf
 	if err != nil {
 		myLog(parent, "INFO", fmt.Sprintf("Waiting for source ConfigMap named '%s'", parent.Spec.Source.ConfigMap.Name))
 	} else {
-		// Got ConfigMap, transition to next state
-		return StateIdle, nil
+		// Got ConfigMap, transition to StateWaitComplete
+		return StateWaitComplete, nil
 	}
 
 	return status.StateCurrent, nil

@@ -18,8 +18,8 @@ func stateProviderConfigPending(parentType ParentType, parent *Terraform, status
 		}
 	}
 	if allFound {
-		// All provider secrets found, transition back to StateIdle
-		return StateIdle, nil
+		// All provider secrets found, transition back to StateWaitComplete
+		return StateWaitComplete, nil
 	}
 
 	return status.StateCurrent, nil

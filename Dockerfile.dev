@@ -8,5 +8,6 @@ RUN go install
 
 FROM alpine:3.7
 RUN apk add --update ca-certificates bash curl
+RUN curl -sfSL https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl > /usr/bin/kubectl && chmod +x /usr/bin/kubectl
 COPY --from=build /go/bin/terraform-operator /usr/bin/
 CMD ["/usr/bin/terraform-operator"]

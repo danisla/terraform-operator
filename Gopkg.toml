@@ -25,6 +25,10 @@
 #   unused-packages = true
 
 [[constraint]]
+  name = "github.com/ghodss/yaml"
+  version = "1.0.0"
+  
+[[constraint]]
   name = "cloud.google.com/go"
   version = "0.26.0"
 

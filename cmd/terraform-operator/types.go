@@ -36,10 +36,14 @@ const (
 	StateNone = "NONE"
 	// StateIdle means there are no more changes pending
 	StateIdle = "IDLE"
+	// StateWaitComplete is used to indicate that a wait is complete and to transition back through the idle handler.
+	StateWaitComplete = "WAIT_COMPLETE"
 	// StateSourcePending means the controller is waiting for the source ConfigMap to become available.
 	StateSourcePending = "SOURCE_PENDING"
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
 	StateProviderConfigPending = "PROVIDER_PENDING"
+	// StateTFInputPending means the controller is waiting for one or more tfapply objects.
+	StateTFInputPending = "TFINPUT_PENDING"
 	// StatePodRunning means the controller is waiting for the terraform pod to complete.
 	StatePodRunning = "POD_RUNNING"
 	// StateRetry means a pod has failed and is being retried up to MaxAttempts times.
@@ -107,6 +111,7 @@ type TerraformSpec struct {
 	ProviderConfig  map[string]TerraformSpecProviderConfig `json:"providerConfig,omitempty"`
 	Source          TerraformConfigSource                  `json:"source,omitempty"`
 	ConfigMapName   string                                 `json:"configMapName,omitempty"`
+	TFInputs        []TerraformConfigInputs                `json:"tfinputs,omitempty"`
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
 	MaxAttempts     int                                    `json:"maxAttempts,omitempty"`
 }
@@ -132,6 +137,12 @@ type TerraformSourceConfigMap struct {
 type TerraformSpecCredentials struct {
 	Name string `json:"name,omitempty"`
 	Key  string `json:"key,omitempty"`
+}
+
+// TerraformConfigInputs is the structure defining how to use output vars from other TerraformApply resources
+type TerraformConfigInputs struct {
+	Name   string            `json:"name,omitempty"`
+	VarMap map[string]string `json:"varMap,omitempty"`
 }
 
 // TerraformOutputVar is the structure of a terraform output variable from `terraform output -json`

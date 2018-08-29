@@ -1,4 +1,4 @@
-TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml
+TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml job3-cm-tfplan-inputs.yaml
 TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job2-src-tfapply.yaml
 TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job2-src-tfdestroy.yaml
 
@@ -113,6 +113,32 @@ spec:
     region: us-central1
 endef
 
+define TEST_JOB_CM_INPUTS
+apiVersion: ctl.isla.solutions/v1
+kind: {{KIND}}
+metadata:
+  name: {{NAME}}
+spec:
+  image: {{IMAGE}}
+  imagePullPolicy: Always
+  backendBucket: {{BACKEND_BUCKET}}
+  backendPrefix: {{BACKEND_PREFIX}}
+  providerConfig:
+    google:
+      secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
+  source:
+    configMap:
+      name: {{CM_NAME}}
+      trigger: true
+  configMapName: {{CM_NAME}}
+  tfinputs:
+  - name: {{TFAPPLY_NAME}}
+    varMap:
+      {{SRC_VAR}}: {{DEST_VAR}}
+  tfvars:
+    region: us-central1
+endef
+
 credentials: $(GOOGLE_CREDENTIALS_SA_KEY) project
 	kubectl create secret generic $(GOOGLE_PROVIDER_SECRET_NAME) --from-literal=GOOGLE_PROJECT=$(PROJECT) --from-file=GOOGLE_CREDENTIALS=$(GOOGLE_CREDENTIALS_SA_KEY)
 
@@ -124,6 +150,7 @@ tests/job%-cm.yaml: project
         -e "s/{{PROJECT}}/$(PROJECT)/g" \
 	> $@
 
+### BEGIN Tests with ConfigMap source ###
 export TEST_JOB_CM
 tests/job%-cm-tfplan.yaml: backend_bucket
 	@mkdir -p tests
@@ -162,7 +189,10 @@ tests/job%-cm-tfdestroy.yaml: backend_bucket
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	    -e "s/{{CM_NAME}}/job$*-tf/g" \
 	> $@
+### END Tests with ConfigMap source ###
 
+
+### BEGIN Tests with embedded terraform ###
 export TEST_JOB_SRC
 tests/job%-src-tfplan.yaml: backend_bucket
 	@mkdir -p tests
@@ -198,6 +228,27 @@ tests/job%-src-tfdestroy.yaml: backend_bucket
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
 	> $@
+
+### END Tests with embedded terraform ###
+
+### BEGIN Tests with configmap source and tfapply inputs
+export TEST_JOB_CM_INPUTS
+tests/job%-cm-tfplan-inputs.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_CM_INPUTS}" | \
+	sed -e "s/{{KIND}}/TerraformPlan/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{TFAPPLY_NAME}}/job1/g" \
+	    -e "s/{{CM_NAME}}/job1-tf/g" \
+	    -e "s/{{SRC_VAR}}/region/g" \
+	    -e "s/{{DEST_VAR}}/region_input/g" \
+	> $@
+
+### END Tests with configmap source and tfapply inputs
 
 test-artifacts: $(addprefix tests/,$(TEST_ARTIFACTS))
 

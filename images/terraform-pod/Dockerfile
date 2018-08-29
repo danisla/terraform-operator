@@ -16,7 +16,7 @@ RUN /opt/terraform/terraform-install.sh
 RUN cp ${HOME}/bin/terraform /usr/local/bin/terraform
 
 # Install kubectl
-RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl > /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+RUN curl -sfSL https://storage.googleapis.com/kubernetes-release/release/v1.11.0/bin/linux/amd64/kubectl > /usr/bin/kubectl && chmod +x /usr/bin/kubectl
 
 COPY run-terraform-apply.sh /run-terraform-apply.sh
 RUN chmod +x /run-terraform-apply.sh

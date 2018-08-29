@@ -21,8 +21,7 @@ func stateRetryHandler(parentType ParentType, parent *Terraform, status *Terrafo
 	timeSinceFinished := time.Since(finishedAt)
 	if timeSinceFinished.Seconds() >= backoff {
 		// Done waiting for backoff.
-		// Call StateIdle handler to trigger recreation of new pod
-		return stateIdleHandler(parentType, parent, status, children, desiredChildren)
+		return StateWaitComplete, nil
 	}
 
 	return status.StateCurrent, nil

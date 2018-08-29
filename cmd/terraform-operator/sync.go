@@ -12,7 +12,7 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 
 	var err error
 	switch currState {
-	case StateNone:
+	case StateNone, StateWaitComplete:
 		// Call StateIdle handler
 		nextState, err = stateIdleHandler(parentType, parent, status, children, &desiredChildren)
 
@@ -29,6 +29,10 @@ func sync(parentType ParentType, parent *Terraform, children *TerraformControlle
 	case StateSourcePending:
 		// Call StateSourcePending handler
 		nextState, err = stateSourcePending(parentType, parent, status, &desiredChildren)
+
+	case StateTFInputPending:
+		// Call StateTFINputPending handler
+		nextState, err = stateTFInputPending(parentType, parent, status, &desiredChildren)
 
 	case StatePodRunning:
 		// Call StatePodRunning handler
