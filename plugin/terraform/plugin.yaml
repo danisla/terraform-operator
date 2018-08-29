@@ -1,0 +1,11 @@
+name: "terraform"
+shortDesc: "Plan, apply, and destroy terraform configs with terraform-operator"
+longDesc: >
+  Plan, apply, and destroy terraform configs found in the current working directory.
+  The current directory contents are bundled in a tarball and uploaded to GCS.
+  TerraformPlan, TerraformApply, and TerraformDestory resources are then created respectively to operate on the configs.
+  Example:
+    kubectl plugin terraform plan
+    kubectl plugin terraform apply
+    kubectl plugin terraform destroy
+command: ./terraform.sh
