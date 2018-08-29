@@ -28,28 +28,28 @@ const (
 	PodStatusPassed = "COMPLETED"
 )
 
-// TerraformControllerState represents the string mapping of the possible controller states. See the const definition below for enumerated states.
-type TerraformControllerState string
+// TerraformOperatorState represents the string mapping of the possible controller states. See the const definition below for enumerated states.
+type TerraformOperatorState string
 
 const (
 	// StateNone is the inital state for a new spec.
-	StateNone = "NONE"
+	StateNone = TerraformOperatorState("NONE")
 	// StateIdle means there are no more changes pending
-	StateIdle = "IDLE"
+	StateIdle = TerraformOperatorState("IDLE")
 	// StateWaitComplete is used to indicate that a wait is complete and to transition back through the idle handler.
-	StateWaitComplete = "WAIT_COMPLETE"
+	StateWaitComplete = TerraformOperatorState("WAIT_COMPLETE")
 	// StateSourcePending means the controller is waiting for the source ConfigMap to become available.
-	StateSourcePending = "SOURCE_PENDING"
+	StateSourcePending = TerraformOperatorState("SOURCE_PENDING")
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
-	StateProviderConfigPending = "PROVIDER_PENDING"
+	StateProviderConfigPending = TerraformOperatorState("PROVIDER_PENDING")
 	// StateTFPlanPending means the controller is waiting for tfplan object.
-	StateTFPlanPending = "TFPLAN_PENDING"
+	StateTFPlanPending = TerraformOperatorState("TFPLAN_PENDING")
 	// StateTFInputPending means the controller is waiting for one or more tfapply objects.
-	StateTFInputPending = "TFINPUT_PENDING"
+	StateTFInputPending = TerraformOperatorState("TFINPUT_PENDING")
 	// StatePodRunning means the controller is waiting for the terraform pod to complete.
-	StatePodRunning = "POD_RUNNING"
+	StatePodRunning = TerraformOperatorState("POD_RUNNING")
 	// StateRetry means a pod has failed and is being retried up to MaxAttempts times.
-	StateRetry = "POD_RETRY"
+	StateRetry = TerraformOperatorState("POD_RETRY")
 )
 
 // ParentType represents the strign mapping to the possible parent types in the const below.
@@ -63,45 +63,63 @@ const (
 
 // SyncRequest describes the payload from the CompositeController hook
 type SyncRequest struct {
-	Parent   Terraform                          `json:"parent"`
-	Children TerraformControllerRequestChildren `json:"children"`
+	Parent   Terraform                        `json:"parent"`
+	Children TerraformOperatorRequestChildren `json:"children"`
 }
 
 // SyncResponse is the CompositeController response structure.
 type SyncResponse struct {
-	Status   TerraformControllerStatus `json:"status"`
-	Children []interface{}             `json:"children"`
+	Status   TerraformOperatorStatus `json:"status"`
+	Children []interface{}           `json:"children"`
 }
 
-// TerraformControllerRequestChildren is the children definition passed by the CompositeController request for the Terraform controller.
-type TerraformControllerRequestChildren struct {
+// TerraformOperatorRequestChildren is the children definition passed by the CompositeController request for the Terraform controller.
+type TerraformOperatorRequestChildren struct {
 	Pods       map[string]corev1.Pod       `json:"Pod.v1"`
 	ConfigMaps map[string]corev1.ConfigMap `json:"ConfigMap.v1"`
 }
 
-// TerraformControllerStatus is the status structure for the custom resource
-type TerraformControllerStatus struct {
-	LastAppliedSig string                        `json:"lastAppliedSig"`
-	ConfigMapHash  string                        `json:"configMapHash"`
-	StateCurrent   string                        `json:"stateCurrent"`
-	PodName        string                        `json:"podName"`
-	PodStatus      string                        `json:"podStatus"`
-	StartedAt      string                        `json:"startedAt"`
-	FinishedAt     string                        `json:"finishedAt"`
-	Duration       string                        `json:"duration"`
-	TFPlan         string                        `json:"planFile"`
-	TFOutput       map[string]TerraformOutputVar `json:"outputs"`
-	RetryCount     int                           `json:"retryCount"`
-	Workspace      string                        `json:"workspace"`
-	StateFile      string                        `json:"stateFile"`
+// TerraformOperatorStatus is the status structure for the custom resource
+type TerraformOperatorStatus struct {
+	LastAppliedSig string                         `json:"lastAppliedSig"`
+	Sources        TerraformOperatorStatusSources `json:"sources"`
+	StateCurrent   TerraformOperatorState         `json:"stateCurrent"`
+	PodName        string                         `json:"podName"`
+	PodStatus      string                         `json:"podStatus"`
+	StartedAt      string                         `json:"startedAt"`
+	FinishedAt     string                         `json:"finishedAt"`
+	Duration       string                         `json:"duration"`
+	TFPlan         string                         `json:"planFile"`
+	TFOutput       map[string]TerraformOutputVar  `json:"outputs"`
+	RetryCount     int                            `json:"retryCount"`
+	Workspace      string                         `json:"workspace"`
+	StateFile      string                         `json:"stateFile"`
 }
+
+// ConfigMapKeys is an ordered list of source keys as they appeard in the spec.
+// List is a tuple containing the (configmap name , key name)
+type ConfigMapKeys [][]string
+
+// ConfigMapHashes is a map of configmap names to a has of the data spec.
+type ConfigMapHashes map[string]string
+
+// GCSObjects is a list of GCS URLs containing terraform source bundles.
+type GCSObjects []string
+
+// TerraformOperatorStatusSources describes the status.sources structure.
+type TerraformOperatorStatusSources struct {
+	ConfigMapHashes ConfigMapHashes `json:"configMapHashes"`
+}
+
+// TerraformInputVars is a map of output var names from TerraformApply Objects.
+type TerraformInputVars map[string]string
 
 // Terraform is the custom resource definition structure.
 type Terraform struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              TerraformSpec             `json:"spec,omitempty"`
-	Status            TerraformControllerStatus `json:"status"`
+	Spec              TerraformSpec           `json:"spec,omitempty"`
+	Status            TerraformOperatorStatus `json:"status"`
 }
 
 // TerraformSpec is the top level structure of the spec body
@@ -111,7 +129,7 @@ type TerraformSpec struct {
 	BackendBucket   string                                 `json:"backendBucket,omitempty"`
 	BackendPrefix   string                                 `json:"backendPrefix,omitempty"`
 	ProviderConfig  map[string]TerraformSpecProviderConfig `json:"providerConfig,omitempty"`
-	Source          TerraformConfigSource                  `json:"source,omitempty"`
+	Sources         []TerraformConfigSource                `json:"sources,omitempty"`
 	TFPlan          string                                 `json:"tfplan,omitempty"`
 	TFInputs        []TerraformConfigInputs                `json:"tfinputs,omitempty"`
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
@@ -127,6 +145,14 @@ type TerraformSpecProviderConfig struct {
 type TerraformConfigSource struct {
 	ConfigMap TerraformSourceConfigMap `json:"configMap,omitempty"`
 	Embedded  string                   `json:"embedded,omitempty"`
+	GCS       string                   `json:"gcs,omitempty"`
+}
+
+// TerraformConfigSourceData is the structure of all of the extracted config sources used by the Terraform Pod.
+type TerraformConfigSourceData struct {
+	ConfigMapHashes *ConfigMapHashes
+	ConfigMapKeys   *ConfigMapKeys
+	GCSObjects      *GCSObjects
 }
 
 // TerraformSourceConfigMap is the spec defining a config map source for terraform config.

@@ -6,7 +6,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func stateIdle(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
+func stateIdle(parentType ParentType, parent *Terraform, status *TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (TerraformOperatorState, error) {
+	var err error
+
+	if status.StateCurrent == StateIdle && !changeDetected(parent, children, status) {
+		return StateIdle, nil
+	}
 
 	if active, _, _, _ := getPodStatus(children.Pods); active > 0 {
 		// Pods should only be active in the StatePodRunning or StateRetry states.
@@ -18,13 +23,6 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformContro
 
 	// Map of provider config secret names to list of key names.
 	providerConfigKeys := make(map[string][]string, 0)
-
-	// Map of sourceData key names, used to mount as paths in container.
-	sourceDataKeys := make([]string, 0)
-
-	configMapName := ""
-
-	configMapHash := status.ConfigMapHash
 
 	// Check for provider config secret. If not yet available, transition to StateProviderConfigPending
 	if parent.Spec.ProviderConfig != nil {
@@ -40,104 +38,25 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformContro
 		}
 	}
 
-	// Check for ConfigMap source. If not yet available, transition to StateSourcePending
-	if parent.Spec.Source.ConfigMap.Name != "" {
-		myLog(parent, "INFO", fmt.Sprintf("Using Terraform source from ConfigMap: %s", parent.Spec.Source.ConfigMap.Name))
-		configMapName = parent.Spec.Source.ConfigMap.Name
-
-		sourceData, err := getConfigMapSourceData(parent.ObjectMeta.Namespace, parent.Spec.Source.ConfigMap.Name)
-		if err != nil {
-			// Wait for configmap to become available.
-			return StateSourcePending, nil
-		}
-		for k := range sourceData {
-			sourceDataKeys = append(sourceDataKeys, k)
-		}
-		err = validateConfigMapSource(sourceData)
-		if err != nil {
-			myLog(parent, "ERROR", fmt.Sprintf("ConfigMap source data is invalid: %v", err))
-			return StateIdle, nil
-		}
-		configMapHash, err = toSha1(sourceData)
-		if err != nil {
-			return StateIdle, err
-		}
-	} else if parent.Spec.Source.Embedded != "" {
-		myLog(parent, "INFO", "Using Terraform source embedded in spec")
-
-		configMapHash, _ = toSha1(parent.Spec.Source.Embedded)
-
-		configMapName = fmt.Sprintf("%s-%s", podName, configMapHash[0:4])
-
-		cm := makeTerraformSourceConfigMap(configMapName, parent.Spec.Source.Embedded)
-
-		for k := range cm.Data {
-			sourceDataKeys = append(sourceDataKeys, k)
-		}
-
-		*desiredChildren = append(*desiredChildren, cm)
-
-		myLog(parent, "INFO", fmt.Sprintf("Created ConfigMap: %s", configMapName))
-
-	} else {
-		myLog(parent, "WARN", "No terraform source defined. Deadend.")
-		return StateIdle, nil
+	// Wait for all config sources
+	sourceData, err := getSourceData(parent, desiredChildren, podName)
+	if err != nil {
+		myLog(parent, "WARN", fmt.Sprintf("%v", err))
+		return StateSourcePending, nil
 	}
 
-	// Check for TFInputs
-	tfInputVars := make(map[string]string, 0)
-	if len(parent.Spec.TFInputs) > 0 {
-		allFound := true
-		for _, tfinput := range parent.Spec.TFInputs {
-			tfapply, err := getTerraformApply(parent.ObjectMeta.Namespace, tfinput.Name)
-			if err != nil {
-				// Wait for TerraformApply to become available
-				return StateTFInputPending, nil
-			}
-			if len(tfinput.VarMap) > 0 {
-				for srcVar := range tfinput.VarMap {
-					found := false
-					for k := range tfapply.Status.TFOutput {
-						if k == srcVar {
-							found = true
-							break
-						}
-					}
-					if !found {
-						myLog(parent, "WARN", fmt.Sprintf("Input variable from TerraformApply/%s not found: %s", tfinput.Name, srcVar))
-					}
-					allFound = allFound && found
-				}
-			} else {
-				myLog(parent, "INFO", fmt.Sprintf("Waiting for output variables from TerraformApply/%s", tfinput.Name))
-				return StateTFInputPending, nil
-			}
-			if !allFound {
-				return StateTFInputPending, nil
-			}
-
-			for src, dest := range tfinput.VarMap {
-				myLog(parent, "DEBUG", fmt.Sprintf("Creating var mapping from %s/%s -> %s", tfinput.Name, src, dest))
-				tfInputVars[dest] = tfapply.Status.TFOutput[src].Value
-			}
-		}
+	// Wait for any TFInputs
+	tfInputVars, err := getTFInputs(parent)
+	if err != nil {
+		myLog(parent, "WARN", fmt.Sprintf("%v", err))
+		return StateTFInputPending, nil
 	}
 
-	// Check for TFPlan
-	var tfplanFile string
-	if parent.Spec.TFPlan != "" {
-		tfplan, err := getTerraformPlan(parent.ObjectMeta.Namespace, parent.Spec.TFPlan)
-		if err != nil {
-			// Wait for TerraformPlan to become available
-			return StateTFPlanPending, nil
-		}
-		if tfplan.Status.PodStatus != PodStatusPassed || tfplan.Status.TFPlan == "" {
-			myLog(parent, "INFO", fmt.Sprintf("Waiting for TerraformPlan/%s TFPlan", tfplan.Name))
-			return StateTFPlanPending, nil
-		}
-		tfplanFile = tfplan.Status.TFPlan
-
-		myLog(parent, "INFO", fmt.Sprintf("Using plan from TerraformPlan/%s: '%s'", tfplan.Name, tfplanFile))
+	// Wait for any TerraformPlan
+	tfplanFile, err := getTFPlanFile(parent)
+	if err != nil {
+		myLog(parent, "WARN", fmt.Sprintf("%v", err))
+		return StateTFPlanPending, nil
 	}
 
 	// Get the image and pull policy (or default) from the spec.
@@ -150,10 +69,8 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformContro
 		Namespace:          parent.Namespace,
 		ProjectID:          config.Project,
 		Workspace:          fmt.Sprintf("%s-%s", parent.Namespace, parent.Name),
-		ConfigMapName:      configMapName,
+		SourceData:         sourceData,
 		ProviderConfigKeys: providerConfigKeys,
-		SourceDataKeys:     sourceDataKeys,
-		ConfigMapHash:      configMapHash,
 		BackendBucket:      parent.Spec.BackendBucket,
 		BackendPrefix:      parent.Spec.BackendPrefix,
 		TFPlan:             tfplanFile,
@@ -161,11 +78,10 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformContro
 		TFVars:             parent.Spec.TFVars,
 	}
 
-	status.ConfigMapHash = configMapHash
+	status.Sources.ConfigMapHashes = *sourceData.ConfigMapHashes
 
 	// Make Terraform Pod
 	var pod corev1.Pod
-	var err error
 	switch parentType {
 	case ParentPlan:
 		pod, err = tfp.makeTerraformPod(podName, []string{PLAN_POD_CMD})

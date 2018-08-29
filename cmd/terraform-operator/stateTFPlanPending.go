@@ -8,22 +8,30 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-func stateTFPlanPending(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, desiredChildren *[]interface{}) (string, error) {
+func getTFPlanFile(parent *Terraform) (string, error) {
 	// Wait for tfplan
+
+	var tfplanFile string
 	var tfplan Terraform
 	var err error
-	tfplan, err = getTerraformPlan(parent.ObjectMeta.Namespace, parent.Spec.TFPlan)
-	if err != nil {
-		myLog(parent, "INFO", fmt.Sprintf("Waiting for TerraformPlan/%s", tfplan.Name))
-		return StateTFPlanPending, nil
+
+	if parent.Spec.TFPlan != "" {
+
+		tfplan, err = getTerraformPlan(parent.ObjectMeta.Namespace, parent.Spec.TFPlan)
+		if err != nil {
+			return tfplanFile, fmt.Errorf("Waiting for TerraformPlan/%s", parent.Spec.TFPlan)
+		}
+
+		if tfplan.Status.PodStatus != PodStatusPassed || tfplan.Status.TFPlan == "" {
+			return tfplanFile, fmt.Errorf("Waiting for TerraformPlan/%s TFPlan", tfplan.Name)
+		}
+
+		tfplanFile = tfplan.Status.TFPlan
+
+		myLog(parent, "INFO", fmt.Sprintf("Using plan from TerraformPlan/%s: '%s'", tfplan.Name, tfplanFile))
 	}
 
-	if tfplan.Status.PodStatus != PodStatusPassed || tfplan.Status.TFPlan == "" {
-		myLog(parent, "INFO", fmt.Sprintf("Waiting for TerraformPlan/%s TFPlan", tfplan.Name))
-		return StateTFPlanPending, nil
-	}
-
-	return StateWaitComplete, nil
+	return tfplanFile, nil
 }
 
 func getTerraformPlan(namespace string, name string) (Terraform, error) {

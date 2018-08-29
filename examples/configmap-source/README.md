@@ -107,8 +107,8 @@ spec:
   providerConfig:
     google:
       secretName: tf-google
-  source:
-    configMap:
+  sources:
+  - configMap:
       name: example-tf
       trigger: true
   tfvars:

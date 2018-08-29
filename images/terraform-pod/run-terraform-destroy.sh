@@ -4,6 +4,8 @@ set -x
 set -e
 set -o pipefail
 
+mkdir -p ${PWD}/.terraform
+
 terraform version
 
 cat > backend.tf <<EOF
@@ -14,6 +16,8 @@ terraform {
   }
 }
 EOF
+
+tree
 
 terraform init -upgrade=true
 terraform workspace select ${WORKSPACE} || terraform workspace new ${WORKSPACE}

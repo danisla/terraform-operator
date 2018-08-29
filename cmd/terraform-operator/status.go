@@ -7,8 +7,8 @@ import (
 	"fmt"
 )
 
-func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren) *TerraformControllerStatus {
-	status := TerraformControllerStatus{
+func makeStatus(parent *Terraform, children *TerraformOperatorRequestChildren) *TerraformOperatorStatus {
+	status := TerraformOperatorStatus{
 		StateCurrent: StateNone,
 	}
 
@@ -28,8 +28,8 @@ func makeStatus(parent *Terraform, children *TerraformControllerRequestChildren)
 		status.StateCurrent = parent.Status.StateCurrent
 	}
 
-	if parent.Status.ConfigMapHash != "" && changed == false {
-		status.ConfigMapHash = parent.Status.ConfigMapHash
+	if parent.Status.Sources.ConfigMapHashes != nil {
+		status.Sources.ConfigMapHashes = parent.Status.Sources.ConfigMapHashes
 	}
 
 	if parent.Status.PodName != "" && changed == false {
@@ -87,7 +87,7 @@ func calcParentSig(parent *Terraform, addStr string) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-func changeDetected(parent *Terraform, children *TerraformControllerRequestChildren, status *TerraformControllerStatus) bool {
+func changeDetected(parent *Terraform, children *TerraformOperatorRequestChildren, status *TerraformOperatorStatus) bool {
 	changed := false
 
 	if status.StateCurrent == StateIdle {
@@ -98,20 +98,22 @@ func changeDetected(parent *Terraform, children *TerraformControllerRequestChild
 			changed = true
 		}
 
-		// Changed if config map source data changes.
-		if parent.Spec.Source.ConfigMap.Name != "" && parent.Spec.Source.ConfigMap.Trigger && status.ConfigMapHash != "" {
-			specData, err := getConfigMapSourceData(parent.ObjectMeta.Namespace, parent.Spec.Source.ConfigMap.Name)
-			if err != nil {
-				changed = true
-			}
-			shaSum, err := toSha1(specData)
-			if err != nil {
-				myLog(parent, "ERROR", fmt.Sprintf("Failed to compute shasum of ConfigMap: %v", err))
-				changed = true
-			}
-			if shaSum != status.ConfigMapHash {
-				myLog(parent, "DEBUG", "Changed because configmap spec changed")
-				changed = true
+		// Changed if any config map sources change.
+		for _, source := range parent.Spec.Sources {
+			if source.ConfigMap.Name != "" && source.ConfigMap.Trigger && status.Sources.ConfigMapHashes[source.ConfigMap.Name] != "" {
+				specData, err := getConfigMapSourceData(parent.ObjectMeta.Namespace, source.ConfigMap.Name)
+				if err != nil {
+					changed = true
+				}
+				shaSum, err := toSha1(specData)
+				if err != nil {
+					myLog(parent, "ERROR", fmt.Sprintf("Failed to compute shasum of ConfigMap: %v", err))
+					changed = true
+				}
+				if shaSum != status.Sources.ConfigMapHashes[source.ConfigMap.Name] {
+					myLog(parent, "DEBUG", "Changed because configmap spec changed")
+					changed = true
+				}
 			}
 		}
 	}

@@ -127,7 +127,7 @@ spec:
       serviceAccountName: terraform-operator
       containers:
       - name: terraform-operator
-        image: gcr.io/cloud-solutions-group/terraform-operator:0.1.2
+        image: gcr.io/cloud-solutions-group/terraform-operator:0.2.0
         command: ["/usr/bin/terraform-operator"]
         # env:
         # - name: HTTP_DEBUG

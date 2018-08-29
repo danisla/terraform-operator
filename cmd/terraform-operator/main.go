@@ -65,7 +65,7 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var err error
-		var desiredStatus *TerraformControllerStatus
+		var desiredStatus *TerraformOperatorStatus
 		var desiredChildren *[]interface{}
 		var parentType ParentType
 		switch req.Parent.Kind {
