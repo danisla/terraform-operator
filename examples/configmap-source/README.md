@@ -1,13 +1,13 @@
-# Terraform Operator Basic Example
+# Terraform Operator ConfigMap Source Example
 
-[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/terraform-operator&working_dir=examples/basic&page=shell&tutorial=README.md)
+[![button](http://gstatic.com/cloudssh/images/open-btn.png)](https://console.cloud.google.com/cloudshell/open?git_repo=https://github.com/danisla/terraform-operator&working_dir=examples/configmap-source&page=shell&tutorial=README.md)
 
-Basic example showing how to apply a Terraform config using the operator.
+Example showing how to apply a Terraform config from ConfigMap source.
 
 ## Change to the example directory
 
 ```
-[[ `basename $PWD` != basic ]] && cd examples/basic
+[[ `basename $PWD` != configmap-source ]] && cd examples/configmap-source
 ```
 
 ## Set up the environment
@@ -95,67 +95,50 @@ gsutil mb gs://${BACKEND_BUCKET}
 1. Create the `example-tfapply.yaml` file:
 
 ```
-cat > example-tfapply.yaml <<'EOF'
+BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
+cat > example-tfapply.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
 kind: TerraformApply
 metadata:
   name: example
 spec:
-  image: gcr.io/cloud-solutions-group/terraform-pod:latest
-  imagePullPolicy: Always
-  backendBucket: {{BACKEND_BUCKET}}
+  backendBucket: ${BACKEND_BUCKET}
   backendPrefix: terraform
   providerConfig:
     google:
       secretName: tf-google
   source:
-    embedded: |-
-      variable "region" {}
-      provider "google" {
-        region = "${var.region}"
-      }
-      resource "google_compute_project_metadata_item" "default" {
-        key = "tf-job-test"
-        value = "tf-operator-test"
-      }
-      data "google_client_config" "current" {}
-      output "project" {
-        value = "${data.google_client_config.current.project}"
-      }
-      output "region" {
-        value = "${var.region}"
-      }
-      output "metadata_key" {
-        value = "${google_compute_project_metadata_item.default.key}"
-      }
-      output "metadata_value" {
-        value = "${google_compute_project_metadata_item.default.value}"
-      }
+    configMap:
+      name: example-tf
+      trigger: true
   tfvars:
     region: us-central1
 EOF
-
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
-sed -i -e "s|{{BACKEND_BUCKET}}|${BACKEND_BUCKET}|g" example-tfapply.yaml
 cat example-tfapply.yaml
 ```
 
-## Create the TerraformApply resource
+## Create the ConfigMap and TerraformApply resource
 
-1. Create the `TerraformApply` resource by applying the yaml spec:
+1. Create the `ConfigMap` by applying the yaml spec in this repository:
+
+```
+kubectl apply -f example-cm.yaml
+```
+
+2. Create the `TerraformApply` resource by applying the yaml spec:
 
 ```
 kubectl apply -f example-tfapply.yaml
 ```
 
-2. Get the output of the terraform operation:
+3. Get the output of the terraform operation:
 
 ```
 POD=$(kubectl get tfapply example -o jsonpath='{.status.podName}')
 kubectl logs -f $POD
 ```
 
-3. View the resource status with `kubectl describe`:
+4. View the resource status with `kubectl describe`:
 
 ```
 kubectl describe tfapply example
