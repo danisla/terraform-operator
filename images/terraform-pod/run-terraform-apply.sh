@@ -39,7 +39,7 @@ else
     terraform plan -input=false -out terraform.tfplan
 fi
 
-terraform apply -no-color -input=false -auto-approve terraform.tfplan
+terraform apply -input=false -auto-approve terraform.tfplan
 
 function publishOutputs() {
     local module=$1
