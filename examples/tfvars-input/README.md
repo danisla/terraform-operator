@@ -152,6 +152,7 @@ spec:
   source:
     configMap:
       name: example-tf-mig
+      trigger: true
   tfinputs:
   - name: example-network
     varMap:
