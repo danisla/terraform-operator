@@ -117,8 +117,8 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformContro
 			}
 
 			for src, dest := range tfinput.VarMap {
-				myLog(parent, "DEBUG", fmt.Sprintf("Creating var mapping from %s/%s -> TF_VAR_%s", tfinput.Name, src, dest))
-				tfInputVars[dest] = fmt.Sprintf("TF_VAR_%s", tfapply.Status.TFOutput[src].Value)
+				myLog(parent, "DEBUG", fmt.Sprintf("Creating var mapping from %s/%s -> %s", tfinput.Name, src, dest))
+				tfInputVars[dest] = tfapply.Status.TFOutput[src].Value
 			}
 		}
 	}

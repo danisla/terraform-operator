@@ -175,8 +175,12 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 
 	// Vars from TerraformApply outputs
 	for k, v := range tfp.TFInputs {
+		varName := k
+		if !tfVarEnv.MatchString(v) {
+			varName = fmt.Sprintf("TF_VAR_%s", varName)
+		}
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  k,
+			Name:  varName,
 			Value: v,
 		})
 	}
