@@ -20,6 +20,7 @@ module "mig1" {
   target_tags       = ["${var.network_name}"]
   service_port      = 80
   service_port_name = "http"
+  http_health_check = false
   startup_script    = "${data.template_file.group-startup-script.rendered}"
   network           = "${var.network_name}"
   subnetwork        = "${var.network_name}"
