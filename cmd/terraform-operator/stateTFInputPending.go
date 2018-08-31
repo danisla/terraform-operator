@@ -8,15 +8,14 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-func stateTFInputPending(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, desiredChildren *[]interface{}) (string, error) {
+func getTFInputs(parent *Terraform) (TerraformInputVars, error) {
+	tfInputVars := make(TerraformInputVars, 0)
 
 	// Wait for tfinputs
-	allFound := true
 	for _, tfinput := range parent.Spec.TFInputs {
 		tfapply, err := getTerraformApply(parent.ObjectMeta.Namespace, tfinput.Name)
 		if err != nil {
-			myLog(parent, "INFO", fmt.Sprintf("Waiting for TerraformApply/%s", tfinput.Name))
-			allFound = false
+			return tfInputVars, fmt.Errorf("Waiting for TerraformApply/%s", tfinput.Name)
 		} else {
 			if len(tfinput.VarMap) > 0 {
 				for srcVar := range tfinput.VarMap {
@@ -28,23 +27,21 @@ func stateTFInputPending(parentType ParentType, parent *Terraform, status *Terra
 						}
 					}
 					if !found {
-						myLog(parent, "WARN", fmt.Sprintf("Input variable from TerraformApply/%s not found: %s", tfinput.Name, srcVar))
+						return tfInputVars, fmt.Errorf("Input variable from TerraformApply/%s not found: %s", tfinput.Name, srcVar)
 					}
-					allFound = allFound && found
 				}
 			} else {
-				myLog(parent, "INFO", fmt.Sprintf("Waiting for output variables from TerraformApply/%s", tfinput.Name))
+				return tfInputVars, fmt.Errorf("Waiting for output variables from TerraformApply/%s", tfinput.Name)
+			}
+
+			for src, dest := range tfinput.VarMap {
+				myLog(parent, "DEBUG", fmt.Sprintf("Creating var mapping from %s/%s -> %s", tfinput.Name, src, dest))
+				tfInputVars[dest] = tfapply.Status.TFOutput[src].Value
 			}
 		}
 	}
 
-	if allFound {
-		// All intputs found, transition to StateWaitComplete
-		myLog(parent, "INFO", "Found all required input variables")
-		return StateWaitComplete, nil
-	}
-
-	return StateTFInputPending, nil
+	return tfInputVars, nil
 }
 
 func getTerraformApply(namespace string, name string) (Terraform, error) {

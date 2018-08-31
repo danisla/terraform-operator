@@ -4,6 +4,8 @@ set -x
 set -e
 set -o pipefail
 
+mkdir -p ${PWD}/.terraform
+
 function downloadPlan() {
   local tfplan=$1
   local dest=$2
@@ -29,6 +31,8 @@ terraform {
   }
 }
 EOF
+
+tree
 
 terraform init -upgrade=true
 terraform workspace select ${WORKSPACE} || terraform workspace new ${WORKSPACE}

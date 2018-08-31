@@ -108,8 +108,8 @@ spec:
   providerConfig:
     google:
       secretName: tf-google
-  source:
-    embedded: |-
+  sources:
+  - embedded: |-
       variable "region" {}
       provider "google" {
         region = "${var.region}"

@@ -8,7 +8,7 @@ import (
 
 const DEFAULT_RETRY_BACKOFF_SCALE = 5.0
 
-func stateRetry(parentType ParentType, parent *Terraform, status *TerraformControllerStatus, children *TerraformControllerRequestChildren, desiredChildren *[]interface{}) (string, error) {
+func stateRetry(parentType ParentType, parent *Terraform, status *TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (TerraformOperatorState, error) {
 
 	finishedAt, err := time.Parse(time.RFC3339, status.FinishedAt)
 	if err != nil {

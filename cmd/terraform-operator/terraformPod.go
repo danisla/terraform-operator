@@ -11,10 +11,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Paths to scripts in the Terraform Pod container
 const (
 	PLAN_POD_CMD    = "/run-terraform-plan.sh"
 	APPLY_POD_CMD   = "/run-terraform-apply.sh"
 	DESTROY_POD_CMD = "/run-terraform-destroy.sh"
+	GCS_TARBALL_CMD = "/get-gcs-tarball.sh"
+)
+
+// Name of the containers in the Terraform Pod
+const (
+	TERRAFORM_CONTAINER_NAME   = "terraform"
+	GCS_TARBALL_CONTAINER_NAME = "gcs-tarball"
 )
 
 // TFPod contains the data needed to create the Terraform Pod
@@ -24,10 +32,8 @@ type TFPod struct {
 	Namespace          string
 	ProjectID          string
 	Workspace          string
-	ConfigMapName      string
+	SourceData         TerraformConfigSourceData
 	ProviderConfigKeys map[string][]string
-	SourceDataKeys     []string
-	ConfigMapHash      string
 	BackendBucket      string
 	BackendPrefix      string
 	TFPlan             string
@@ -42,6 +48,8 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 
 	volumeMounts := tfp.makeVolumeMounts()
 
+	volumes := tfp.makeVolumes()
+
 	pod = corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -49,9 +57,6 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: podName,
-			Labels: map[string]string{
-				"tf-config-map-hash": tfp.ConfigMapHash,
-			},
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: DEFAULT_POD_SERVICE_ACCOUNT,
@@ -59,9 +64,11 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 			// Treating this pod like a job, so no restarts.
 			RestartPolicy: corev1.RestartPolicyNever,
 
+			InitContainers: tfp.makeInitContainers(),
+
 			Containers: []corev1.Container{
 				corev1.Container{
-					Name:            "terraform",
+					Name:            TERRAFORM_CONTAINER_NAME,
 					Image:           tfp.Image,
 					Command:         cmd,
 					ImagePullPolicy: tfp.ImagePullPolicy,
@@ -69,29 +76,70 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 					VolumeMounts:    volumeMounts,
 				},
 			},
-			Volumes: []corev1.Volume{
-				corev1.Volume{
-					Name: "config",
-					VolumeSource: corev1.VolumeSource{
-						ConfigMap: &corev1.ConfigMapVolumeSource{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: tfp.ConfigMapName,
-							},
-						},
-					},
-				},
-				corev1.Volume{
-					Name: "state",
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{
-							Medium: corev1.StorageMediumMemory,
-						},
-					},
-				},
-			},
+			Volumes: volumes,
 		},
 	}
 	return pod, nil
+}
+
+func (tfp *TFPod) makeInitContainers() []corev1.Container {
+	initContainers := make([]corev1.Container, 0)
+
+	if len(*tfp.SourceData.GCSObjects) > 0 {
+		envVars := make([]corev1.EnvVar, 0)
+
+		envVars = append(envVars, tfp.makeProviderEnv()...)
+
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "GCS_TARBALLS",
+			Value: strings.Join(*tfp.SourceData.GCSObjects, ","),
+		})
+
+		initContainers = append(initContainers, corev1.Container{
+			Name:            GCS_TARBALL_CONTAINER_NAME,
+			Image:           tfp.Image,
+			Command:         []string{GCS_TARBALL_CMD},
+			ImagePullPolicy: tfp.ImagePullPolicy,
+			Env:             envVars,
+			VolumeMounts: []corev1.VolumeMount{
+				corev1.VolumeMount{
+					Name:      "state",
+					MountPath: "/opt/terraform/",
+				},
+			},
+		})
+	}
+
+	return initContainers
+}
+
+func (tfp *TFPod) makeProviderEnv() []corev1.EnvVar {
+	envVars := make([]corev1.EnvVar, 0)
+
+	// Project ID
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "PROJECT_ID",
+		Value: tfp.ProjectID,
+	})
+
+	// Provider env
+	for secretName, keys := range tfp.ProviderConfigKeys {
+		for _, k := range keys {
+			envVars = append(envVars, corev1.EnvVar{
+				Name: k,
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: secretName,
+						},
+						Key: k,
+					},
+				},
+			})
+		}
+	}
+
+	return envVars
 }
 
 func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
@@ -123,22 +171,8 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 		},
 	})
 
-	// Provider env
-	for secretName, keys := range tfp.ProviderConfigKeys {
-		for _, k := range keys {
-			envVars = append(envVars, corev1.EnvVar{
-				Name: k,
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: secretName,
-						},
-						Key: k,
-					},
-				},
-			})
-		}
-	}
+	// Provider envvars
+	envVars = append(envVars, tfp.makeProviderEnv()...)
 
 	// Terraform remote backend
 	envVars = append(envVars, corev1.EnvVar{
@@ -196,21 +230,51 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 	return envVars
 }
 
+func (tfp *TFPod) makeVolumes() []corev1.Volume {
+	volumes := make([]corev1.Volume, 0)
+
+	// State empty dir
+	volumes = append(volumes, corev1.Volume{
+		Name: "state",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				Medium: "",
+			},
+		},
+	})
+
+	// ConfigMap volumes
+	for k := range *tfp.SourceData.ConfigMapHashes {
+		volumes = append(volumes, corev1.Volume{
+			Name: k,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: k,
+					},
+				},
+			},
+		})
+	}
+
+	return volumes
+}
+
 func (tfp *TFPod) makeVolumeMounts() []corev1.VolumeMount {
 	volumeMounts := make([]corev1.VolumeMount, 0)
 
 	// State
 	volumeMounts = append(volumeMounts, corev1.VolumeMount{
 		Name:      "state",
-		MountPath: "/opt/terraform/.terraform",
+		MountPath: "/opt/terraform/",
 	})
 
 	// Mount each entity in the config
-	for _, k := range tfp.SourceDataKeys {
+	for _, t := range *tfp.SourceData.ConfigMapKeys {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "config",
-			MountPath: filepath.Join("/opt/terraform/", k),
-			SubPath:   filepath.Base(k),
+			Name:      t[0],
+			MountPath: filepath.Join("/opt/terraform/", t[1]),
+			SubPath:   filepath.Base(t[1]),
 		})
 	}
 
@@ -236,7 +300,7 @@ func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
 	return image, pullPolicy
 }
 
-func makeOrdinalPodName(parentType ParentType, parent *Terraform, children *TerraformControllerRequestChildren) string {
+func makeOrdinalPodName(parentType ParentType, parent *Terraform, children *TerraformOperatorRequestChildren) string {
 	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
 	var validName = regexp.MustCompile(`^([a-z][a-z0-9]+)-([a-z][a-z0-9]+)-([0-9]+)$`)
 

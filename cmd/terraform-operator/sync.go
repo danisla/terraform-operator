@@ -2,35 +2,16 @@ package main
 
 import "fmt"
 
-func sync(parentType ParentType, parent *Terraform, children *TerraformControllerRequestChildren) (*TerraformControllerStatus, *[]interface{}, error) {
+func sync(parentType ParentType, parent *Terraform, children *TerraformOperatorRequestChildren) (*TerraformOperatorStatus, *[]interface{}, error) {
 	status := makeStatus(parent, children)
 	currState := status.StateCurrent
 	desiredChildren := make([]interface{}, 0)
 	nextState := currState[0:1] + currState[1:] // string copy of currState
 
-	changed := changeDetected(parent, children, status)
-
 	var err error
 	switch currState {
-	case StateNone, StateWaitComplete:
+	case StateNone, StateIdle, StateWaitComplete, StateSourcePending, StateTFPlanPending, StateTFInputPending, StateProviderConfigPending:
 		nextState, err = stateIdle(parentType, parent, status, children, &desiredChildren)
-
-	case StateIdle:
-		if changed {
-			nextState, err = stateIdle(parentType, parent, status, children, &desiredChildren)
-		}
-
-	case StateProviderConfigPending:
-		nextState, err = stateProviderConfigPending(parentType, parent, status, &desiredChildren)
-
-	case StateSourcePending:
-		nextState, err = stateSourcePending(parentType, parent, status, &desiredChildren)
-
-	case StateTFPlanPending:
-		nextState, err = stateTFPlanPending(parentType, parent, status, &desiredChildren)
-
-	case StateTFInputPending:
-		nextState, err = stateTFInputPending(parentType, parent, status, &desiredChildren)
 
 	case StatePodRunning:
 		nextState, err = statePodRunning(parentType, parent, status, children, &desiredChildren)
