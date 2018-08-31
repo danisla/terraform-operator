@@ -26,26 +26,15 @@ gcloud container clusters create dev \
   --zone ${ZONE}
 ```
 
-2. Install Helm:
+## Install metacontroller
 
-```sh
-curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > get_helm.sh
-chmod 700 get_helm.sh
-./get_helm.sh
+1. Install metacontroller:
+
 ```
+kubectl create clusterrolebinding ${USER}-cluster-admin-binding --clusterrole=cluster-admin --user=$(gcloud config get-value account)
 
-3. Initialize Helm
-
-```sh
-kubectl create serviceaccount tiller --namespace kube-system
-kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-helm init --service-account=tiller
-```
-
-4. Install metacontroller:
-
-```sh
-helm install --name metacontroller --namespace metacontroller charts/metacontroller
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/metacontroller/master/manifests/metacontroller-rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/metacontroller/master/manifests/metacontroller.yaml
 ```
 
 ## Install the operator

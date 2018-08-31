@@ -2,7 +2,6 @@
 
 This project uses the following build tools:
 
-- [helm](https://helm.sh/)
 - [dep](https://github.com/golang/dep)
 - [skaffold](https://github.com/GoogleContainerTools/skaffold)
 - [kustomize](https://github.com/kubernetes-sigs/kustomize)
