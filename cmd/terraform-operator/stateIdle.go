@@ -73,6 +73,7 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformOperat
 		ProviderConfigKeys: providerConfigKeys,
 		BackendBucket:      parent.Spec.BackendBucket,
 		BackendPrefix:      parent.Spec.BackendPrefix,
+		TFParent:           parent.Name,
 		TFPlan:             tfplanFile,
 		TFInputs:           tfInputVars,
 		TFVars:             parent.Spec.TFVars,

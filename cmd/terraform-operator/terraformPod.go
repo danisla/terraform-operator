@@ -36,6 +36,7 @@ type TFPod struct {
 	ProviderConfigKeys map[string][]string
 	BackendBucket      string
 	BackendPrefix      string
+	TFParent           string
 	TFPlan             string
 	TFInputs           map[string]string
 	TFVars             map[string]string
@@ -50,13 +51,16 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 
 	volumes := tfp.makeVolumes()
 
+	labels := tfp.makeLabels()
+
 	pod = corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: podName,
+			Name:   podName,
+			Labels: labels,
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: DEFAULT_POD_SERVICE_ACCOUNT,
@@ -279,6 +283,14 @@ func (tfp *TFPod) makeVolumeMounts() []corev1.VolumeMount {
 	}
 
 	return volumeMounts
+}
+
+func (tfp *TFPod) makeLabels() map[string]string {
+	labels := make(map[string]string, 0)
+
+	labels["terraform-parent"] = tfp.TFParent
+
+	return labels
 }
 
 func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
