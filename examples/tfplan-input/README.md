@@ -71,10 +71,10 @@ gcloud projects add-iam-policy-binding ${PROJECT} \
     --role roles/editor --member serviceAccount:${SA_EMAIL}
 ```
 
-2. Create new secret name `tf-google` with `GOOGLE_CREDENTIALS` and `GOOGLE_PROJECT`:
+2. Create new secret name `tf-provider-google` with `GOOGLE_CREDENTIALS` and `GOOGLE_PROJECT`:
 
 ```
-kubectl create secret generic tf-google \
+kubectl create secret generic tf-provider-google \
   --from-file=GOOGLE_CREDENTIALS=${SA_KEY} \
   --from-literal=GOOGLE_PROJECT=$(gcloud config get-value project)
 ```
@@ -106,7 +106,7 @@ spec:
   backendPrefix: terraform
   providerConfig:
     google:
-      secretName: tf-google
+      secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf
@@ -133,7 +133,7 @@ spec:
   backendPrefix: terraform
   providerConfig:
     google:
-      secretName: tf-google
+      secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf

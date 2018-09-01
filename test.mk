@@ -7,7 +7,7 @@ IMAGE := "gcr.io/cloud-solutions-group/terraform-pod:latest"
 TEST_ARTIFACTS := $(TEST_PLAN_ARTIFACTS) $(TEST_APPLY_ARTIFACTS) $(TEST_DESTROY_ARTIFACTS) job*-bundle.tgz main.tf
 
 GOOGLE_CREDENTIALS_SA_KEY := $(HOME)/.tf-google-sa-key.json
-GOOGLE_PROVIDER_SECRET_NAME := tf-google
+GOOGLE_PROVIDER_SECRET_NAME := tf-provider-google
 
 project:
 	$(eval PROJECT := $(shell gcloud config get-value project))
