@@ -170,8 +170,11 @@ function installTerraformOperator() {
 function makeBundleName() {
     . "${TERRAFORM_OPERATOR_CONFIG}"
 
-    local crc=${1:0:4}
-    local bundle="kterraform-${crc}.tgz"
+    local name=$1
+    local type=$2
+    local crc=${3:0:4}
+    local ts=$(date +%s)
+    local bundle="kterraform-${name}-${type}-${crc}-${ts}.tgz"
     echo "gs://${BACKEND_BUCKET}/sources/${bundle}"
 }
 
@@ -179,7 +182,6 @@ function makeBundle() {
     local tmpdir=$(mktemp -d)
     local src=$1
     local bundle="${tmpdir}/bundle.tgz"
-    local cksums="${tmpdir}/checksums"
     cd ${src}
     tar \
         --exclude .git \
@@ -199,11 +201,13 @@ function makeChecksum() {
 function uploadTarball() {
     . "${TERRAFORM_OPERATOR_CONFIG}"
 
-    local bundle=$(makeBundle $1)
+    local name=$1
+    local type=$2
+    local src=$3
+    local bundle=$(makeBundle "${src}")
     local crc=$(makeChecksum "${bundle}")
-    local dest="$(makeBundleName "${crc}")"
+    local dest="$(makeBundleName "${name}" "${type}" "${crc}")"
 
-    # gsutil cp "${bundle}" "${dest}" >/dev/null 2>&1
     gsutil cp "${bundle}" "${dest}" >/dev/null 2>&1
     echo "${dest}"
 }
@@ -242,55 +246,82 @@ ${tfplan}
   sources:
   - gcs: ${bundle}
 EOF
-    echo "${jobName}"
+}
+
+function dateToUnixTime() {
+    local srcDate=$1
+    local platform=$(uname)
+    local datecmd="date"
+    case ${platform,,} in
+    darwin)
+        date -jf "%FT%TZ" "${srcDate}" +%s
+        ;;
+    *)
+        date -d "${srcDate}" +%s
+    esac
 }
 
 function tailLogs() {
     local type=$1
     local jobName=$2
+    local startTimeMin=${3:-$(date +%FT%TZ)}
     local namespace=${KUBECTL_PLUGINS_CURRENT_NAMESPACE:-"default"}
 
-    kubectl -n ${namespace} wait pod -l terraform-parent=${jobName} --for condition=Ready >/dev/null
+    startTimeMinUnix=$(dateToUnixTime $startTimeMin)
+    podStart=$startTimeMinUnix
+    count=0
+    until [[ $podStart -gt $startTimeMinUnix || count -ge 10 ]]; do
+        startedAt=$(kubectl -n ${namespace} get ${type} ${jobName} -o jsonpath='{.status.startedAt}' 2>/dev/null)
+        if [[ -n "${startedAt}" ]]; then
+            podStart=$(dateToUnixTime $startedAt)
+        fi
+        sleep 2
+        ((count=count+1))
+    done
 
     local POD=$(kubectl -n ${namespace} get ${type} ${jobName} -o jsonpath='{.status.podName}')
     kubectl -n ${namespace} logs -f $POD
 }
 
+function invalidName() {
+    [[ ! "$1" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]
+}
+
+function makeJobName() {
+    echo "kterraform-${1}"
+}
+
 function terraformPlan() {
     local src=$1
+    local name=$2
     local type="TerraformPlan"
-    local bundle=$(uploadTarball "${src}")
-    local jobName=$(basename "$bundle" .tgz)
-    local jobName=$(makeTF "${type}" "${src}" "${bundle}" "${jobName}")
-    tailLogs "${type}" "${jobName}"
+    local bundle=$(uploadTarball "${name}" "tfplan" "${src}")
+    local jobName=$(makeJobName "${name}")
+    local startTime=$(date +%FT%TZ)
+    makeTF "${type}" "${src}" "${bundle}" "${jobName}"
+    tailLogs "${type}" "${jobName}" "${startTime}"
 }
 
 function terraformApply() {
     local src=$1
+    local name=$2
+    local jobName=$(makeJobName "${name}")
     local type="TerraformApply"
     local namespace=${KUBECTL_PLUGINS_CURRENT_NAMESPACE:-"default"}
+    local bundle=$(uploadTarball "${name}" "tfapply" "${src}")
 
-    # Get logs from existing TerraformPlan
-    local bundle=$(uploadTarball "${src}")
-    local jobName=$(basename "$bundle" .tgz)
-    local POD=$(kubectl -n ${namespace} get TerraformPlan ${jobName} -o jsonpath='{.status.podName}')
-    tfplan=""
-    if [[ -n "${POD}" ]]; then
-        kubectl -n ${namespace} logs $POD
-        tfplan=${jobName}
-    else
-        echo "WARN: No terraform plan run previously." >&2
-    fi
+    # Run terraform plan
+    (cd "${src}" && kubectl plugin terraform plan)
     
-
     while [[ -z "${input}" ]]; do
         printf "\n  "
         read -p "Run terraform apply? (yes/no): " input
     done
 
     if [[ "${input,,}" == "yes" ]]; then
-        local jobName=$(makeTF "${type}" "${src}" "${bundle}" "${jobName}" "${tfplan}")
-        tailLogs "${type}" "${jobName}"
+        local startTime=$(date +%FT%TZ)
+        makeTF "${type}" "${src}" "${bundle}" "${jobName}" "${jobName}"
+        tailLogs "${type}" "${jobName}" "${startTime}"
     else
         echo "Aborting"
     fi
@@ -298,6 +329,8 @@ function terraformApply() {
 
 function terraformDestroy() {
     local src=$1
+    local name=$2
+    local jobName=$(makeJobName "${name}")
     local type="TerraformDestroy"
 
     while [[ -z "${input}" ]]; do
@@ -305,17 +338,17 @@ function terraformDestroy() {
     done
 
     if [[ "${input,,}" == "yes" ]]; then
-        local bundle=$(uploadTarball "${src}")
-        local jobName=$(basename "$bundle" .tgz)
-        local jobName=$(makeTF "${type}" "${src}" "${bundle}" "${jobName}")
-        tailLogs "${type}" "${jobName}"
+        local bundle=$(uploadTarball "${name}" "tfdestroy" "${src}")
+        local startTime=$(date +%FT%TZ)
+        makeTF "${type}" "${src}" "${bundle}" "${jobName}"
+        tailLogs "${type}" "${jobName}" "${startTime}"
     else
         echo "Aborting"
     fi
 }
 
 function usage() {
-    echo "USAGE: kubectl plugin terraform <plan|apply|destroy>" >&2
+    echo "USAGE: kubectl plugin terraform <configure|plan [<name|default>]|apply [<name>|default]|destroy [<name>|default]>" >&2
 }
 
 function getUserCwd() {
@@ -323,24 +356,28 @@ function getUserCwd() {
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    case $1 in
+    action=$1
+    name=${2:-"default"}
+    invalidName "${name}" && echo "ERROR: '$name' is an invalid name, must be a DNS-1123 name in the form of: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'" >&2 && exit 1
+
+    case "$action" in
         configure)
             configure
             ;;
         plan)
-            terraformPlan $(getUserCwd)
+            terraformPlan $(getUserCwd) "${name}"
             ;;
         apply)
-            terraformApply $(getUserCwd)
+            terraformApply $(getUserCwd) "${name}"
             ;;
         destroy)
-            terraformDestroy $(getUserCwd)
+            terraformDestroy $(getUserCwd) "${name}"
             ;;
         "")
             usage
             ;;
         *)
-            echo "ERROR: Unknown operation: $1"
+            echo "ERROR: Unknown operation: $action"
             usage
             ;;
     esac

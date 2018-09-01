@@ -1,4 +1,4 @@
-TAG = dev
+TAG = latest
 
 KANIKO_SA_KEY := ${HOME}/.kaniko-sa-key.json
 
