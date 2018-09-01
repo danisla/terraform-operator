@@ -314,13 +314,13 @@ func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
 
 func makeOrdinalPodName(parentType ParentType, parent *Terraform, children *TerraformOperatorRequestChildren) string {
 	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
-	var validName = regexp.MustCompile(`^([a-z][a-z0-9]+)-([a-z][a-z0-9]+)-([0-9]+)$`)
+	var validName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?-([0-9]+)$`)
 
 	i := -1
 	for name := range children.Pods {
 		if validName.MatchString(name) {
 			toks := strings.Split(name, "-")
-			num, _ := strconv.Atoi(toks[2])
+			num, _ := strconv.Atoi(toks[len(toks)-1])
 			if num > i {
 				i = num
 			}

@@ -21,7 +21,7 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 		case GCS_TARBALL_CONTAINER_NAME:
 			switch pod.Status.Phase {
 			case corev1.PodFailed:
-				setFinalPodStatus(parent, status, cStatus)
+				setFinalPodStatus(parent, status, cStatus, pod)
 				status.PodStatus = PodStatusFailed
 				myLog(parent, "ERROR", fmt.Sprintf("%s init container failed: %s", cStatus.Name, cStatus.State.Terminated.Message))
 
@@ -57,7 +57,7 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 			switch pod.Status.Phase {
 			case corev1.PodSucceeded:
 				// Passed
-				setFinalPodStatus(parent, status, cStatus)
+				setFinalPodStatus(parent, status, cStatus, pod)
 
 				// Extract terraform plan path from annotation.
 				switch parentType {
@@ -93,7 +93,7 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 
 			case corev1.PodFailed:
 				// Failed
-				setFinalPodStatus(parent, status, cStatus)
+				setFinalPodStatus(parent, status, cStatus, pod)
 
 				// Non-zero exit code. Perform retry if attempts has not been exdeeded.
 				myLog(parent, "INFO", fmt.Sprintf("%s container failed: %s", pod.Name, cStatus.State.Terminated.Message))
@@ -148,8 +148,12 @@ func makeOutputVars(data string) (map[string]TerraformOutputVar, error) {
 	return outputVars, err
 }
 
-func setFinalPodStatus(parent *Terraform, status *TerraformOperatorStatus, cStatus corev1.ContainerStatus) {
+func setFinalPodStatus(parent *Terraform, status *TerraformOperatorStatus, cStatus corev1.ContainerStatus, pod corev1.Pod) {
 	status.FinishedAt = cStatus.State.Terminated.FinishedAt.Format(time.RFC3339)
+
+	if status.StartedAt == "" {
+		status.StartedAt = pod.Status.StartTime.Format(time.RFC3339)
+	}
 
 	// Set Duration in seconds
 	startTime, _ := time.Parse(time.RFC3339, status.StartedAt)
