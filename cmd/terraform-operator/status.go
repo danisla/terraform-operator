@@ -5,10 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 )
 
-func makeStatus(parent *Terraform, children *TerraformOperatorRequestChildren) *TerraformOperatorStatus {
-	status := TerraformOperatorStatus{
+func makeStatus(parent *tftype.Terraform, children *TerraformOperatorRequestChildren) *tftype.TerraformOperatorStatus {
+	status := tftype.TerraformOperatorStatus{
 		StateCurrent: StateNone,
 	}
 
@@ -75,7 +77,7 @@ func makeStatus(parent *Terraform, children *TerraformOperatorRequestChildren) *
 	return &status
 }
 
-func calcParentSig(parent *Terraform, addStr string) string {
+func calcParentSig(parent *tftype.Terraform, addStr string) string {
 	hasher := sha1.New()
 	data, err := json.Marshal(&parent.Spec)
 	if err != nil {
@@ -87,7 +89,7 @@ func calcParentSig(parent *Terraform, addStr string) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-func changeDetected(parent *Terraform, children *TerraformOperatorRequestChildren, status *TerraformOperatorStatus) bool {
+func changeDetected(parent *tftype.Terraform, children *TerraformOperatorRequestChildren, status *tftype.TerraformOperatorStatus) bool {
 	changed := false
 
 	if status.StateCurrent == StateIdle {

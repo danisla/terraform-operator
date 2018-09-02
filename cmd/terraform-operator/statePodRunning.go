@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func statePodRunning(parentType ParentType, parent *Terraform, status *TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (TerraformOperatorState, error) {
+func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (tftype.TerraformOperatorState, error) {
 	pod, ok := children.Pods[status.PodName]
 	if ok == false {
 		myLog(parent, "WARN", fmt.Sprintf("Pod not found in children while in state %s", status.StateCurrent))
@@ -134,7 +135,7 @@ func statePodRunning(parentType ParentType, parent *Terraform, status *Terraform
 	return StatePodRunning, nil
 }
 
-func getPodMaxAttempts(parent *Terraform) int {
+func getPodMaxAttempts(parent *tftype.Terraform) int {
 	maxAttempts := DEFAULT_POD_MAX_ATTEMPTS
 	if parent.Spec.MaxAttempts != 0 {
 		maxAttempts = parent.Spec.MaxAttempts
@@ -142,13 +143,13 @@ func getPodMaxAttempts(parent *Terraform) int {
 	return maxAttempts
 }
 
-func makeOutputVars(data string) (map[string]TerraformOutputVar, error) {
-	var outputVars map[string]TerraformOutputVar
+func makeOutputVars(data string) (map[string]tftype.TerraformOutputVar, error) {
+	var outputVars map[string]tftype.TerraformOutputVar
 	err := json.Unmarshal([]byte(data), &outputVars)
 	return outputVars, err
 }
 
-func setFinalPodStatus(parent *Terraform, status *TerraformOperatorStatus, cStatus corev1.ContainerStatus, pod corev1.Pod) {
+func setFinalPodStatus(parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, cStatus corev1.ContainerStatus, pod corev1.Pod) {
 	status.FinishedAt = cStatus.State.Terminated.FinishedAt.Format(time.RFC3339)
 
 	if status.StartedAt == "" {

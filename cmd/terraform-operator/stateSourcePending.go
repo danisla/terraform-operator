@@ -3,22 +3,23 @@ package main
 import (
 	"fmt"
 
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getSourceData(parent *Terraform, desiredChildren *[]interface{}, podName string) (TerraformConfigSourceData, error) {
+func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, podName string) (tftype.TerraformConfigSourceData, error) {
 
 	// Map of ConfigMap source names to content hashes.
-	configMapHashes := make(ConfigMapHashes, 0)
+	configMapHashes := make(tftype.ConfigMapHashes, 0)
 
 	// Map of ConfigMap source names to list of keys.
 	// Keys are in the order the source appears in the spec.
 	// List is a tuple containing the (configmap name , key name)
-	configMapKeys := make(ConfigMapKeys, 0)
+	configMapKeys := make(tftype.ConfigMapKeys, 0)
 
-	gcsObjects := make(GCSObjects, 0)
+	gcsObjects := make(tftype.GCSObjects, 0)
 
-	sourceData := TerraformConfigSourceData{
+	sourceData := tftype.TerraformConfigSourceData{
 		ConfigMapHashes: &configMapHashes,
 		ConfigMapKeys:   &configMapKeys,
 		GCSObjects:      &gcsObjects,

@@ -1,8 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
 
-func sync(parentType ParentType, parent *Terraform, children *TerraformOperatorRequestChildren) (*TerraformOperatorStatus, *[]interface{}, error) {
+	tftype "github.com/danisla/terraform-operator/pkg/types"
+)
+
+func sync(parentType ParentType, parent *tftype.Terraform, children *TerraformOperatorRequestChildren) (*tftype.TerraformOperatorStatus, *[]interface{}, error) {
 	status := makeStatus(parent, children)
 	currState := status.StateCurrent
 	desiredChildren := make([]interface{}, 0)
