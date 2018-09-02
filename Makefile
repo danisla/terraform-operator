@@ -23,6 +23,6 @@ kaniko-secret: $(KANIKO_SA_KEY)
 	kubectl create secret generic kaniko-secret --from-file=kaniko-secret=$(KANIKO_SA_KEY)
 
 metalogs:
-	kubectl -n metacontroller logs --tail=200 -f metacontroller-metacontroller-0
+	kubectl -n metacontroller logs --tail=200 -f metacontroller-0
 
 include test.mk
