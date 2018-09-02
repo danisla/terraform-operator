@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 )
 
 const DEFAULT_RETRY_BACKOFF_SCALE = 5.0
 
-func stateRetry(parentType ParentType, parent *Terraform, status *TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (TerraformOperatorState, error) {
+func stateRetry(parentType ParentType, parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (tftype.TerraformOperatorState, error) {
 
 	finishedAt, err := time.Parse(time.RFC3339, status.FinishedAt)
 	if err != nil {

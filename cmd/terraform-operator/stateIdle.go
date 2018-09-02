@@ -4,9 +4,11 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 )
 
-func stateIdle(parentType ParentType, parent *Terraform, status *TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (TerraformOperatorState, error) {
+func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (tftype.TerraformOperatorState, error) {
 	var err error
 
 	if status.StateCurrent == StateIdle && !changeDetected(parent, children, status) {
@@ -105,7 +107,7 @@ func stateIdle(parentType ParentType, parent *Terraform, status *TerraformOperat
 	status.Workspace = tfp.Workspace
 	status.StateFile = makeStateFilePath(tfp.BackendBucket, tfp.BackendPrefix, tfp.Workspace)
 	status.TFPlan = ""
-	status.TFOutput = make(map[string]TerraformOutputVar, 0)
+	status.TFOutput = make(map[string]tftype.TerraformOutputVar, 0)
 	status.StartedAt = ""
 	status.FinishedAt = ""
 	status.Duration = ""

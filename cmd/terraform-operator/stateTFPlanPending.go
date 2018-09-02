@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"os/exec"
 
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 	"github.com/ghodss/yaml"
 )
 
-func getTFPlanFile(parent *Terraform) (string, error) {
+func getTFPlanFile(parent *tftype.Terraform) (string, error) {
 	// Wait for tfplan
 
 	var tfplanFile string
-	var tfplan Terraform
+	var tfplan tftype.Terraform
 	var err error
 
 	if parent.Spec.TFPlan != "" {
@@ -34,8 +35,8 @@ func getTFPlanFile(parent *Terraform) (string, error) {
 	return tfplanFile, nil
 }
 
-func getTerraformPlan(namespace string, name string) (Terraform, error) {
-	var tfplan Terraform
+func getTerraformPlan(namespace string, name string) (tftype.Terraform, error) {
+	var tfplan tftype.Terraform
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 

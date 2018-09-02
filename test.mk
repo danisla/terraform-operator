@@ -41,6 +41,11 @@ output "metadata_value" {
 }
 endef
 
+define newline
+
+
+endef
+
 define TEST_CM
 apiVersion: v1
 kind: ConfigMap 
@@ -50,7 +55,7 @@ data:
   terraform.tfvars: |-
     region = "us-central1"
   main.tf: |-
-    $(TF_TEST_SRC)
+    $(subst $(newline),\n    ,$(TF_TEST_SRC))
 endef
 
 define TEST_JOB_SRC
@@ -68,7 +73,7 @@ providerConfig:
     secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
 sources:
 - embedded: |-  
-    $(TF_TEST_SRC)
+    $(subst $(newline),\n    ,$(TF_TEST_SRC))
   tfvars:
     region: us-central1
 endef

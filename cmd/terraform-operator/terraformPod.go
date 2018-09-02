@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +33,7 @@ type TFPod struct {
 	Namespace          string
 	ProjectID          string
 	Workspace          string
-	SourceData         TerraformConfigSourceData
+	SourceData         tftype.TerraformConfigSourceData
 	ProviderConfigKeys map[string][]string
 	BackendBucket      string
 	BackendPrefix      string
@@ -293,7 +294,7 @@ func (tfp *TFPod) makeLabels() map[string]string {
 	return labels
 }
 
-func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
+func getImageAndPullPolicy(parent *tftype.Terraform) (string, corev1.PullPolicy) {
 	var image string
 	var pullPolicy corev1.PullPolicy
 
@@ -304,7 +305,7 @@ func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
 	}
 
 	if parent.Spec.ImagePullPolicy != "" {
-		pullPolicy = parent.Spec.ImagePullPolicy
+		pullPolicy = corev1.PullPolicy(parent.Spec.ImagePullPolicy)
 	} else {
 		pullPolicy = DEFAULT_IMAGE_PULL_POLICY
 	}
@@ -312,7 +313,7 @@ func getImageAndPullPolicy(parent *Terraform) (string, corev1.PullPolicy) {
 	return image, pullPolicy
 }
 
-func makeOrdinalPodName(parentType ParentType, parent *Terraform, children *TerraformOperatorRequestChildren) string {
+func makeOrdinalPodName(parentType ParentType, parent *tftype.Terraform, children *TerraformOperatorRequestChildren) string {
 	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
 	var validName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?-([0-9]+)$`)
 

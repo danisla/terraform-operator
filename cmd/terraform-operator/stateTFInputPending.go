@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os/exec"
 
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 	"github.com/ghodss/yaml"
 )
 
-func getTFInputs(parent *Terraform) (TerraformInputVars, error) {
+func getTFInputs(parent *tftype.Terraform) (TerraformInputVars, error) {
 	tfInputVars := make(TerraformInputVars, 0)
 
 	// Wait for tfinputs
@@ -44,8 +45,8 @@ func getTFInputs(parent *Terraform) (TerraformInputVars, error) {
 	return tfInputVars, nil
 }
 
-func getTerraformApply(namespace string, name string) (Terraform, error) {
-	var tfapply Terraform
+func getTerraformApply(namespace string, name string) (tftype.Terraform, error) {
+	var tfapply tftype.Terraform
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 

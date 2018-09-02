@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+
+	tftype "github.com/danisla/terraform-operator/pkg/types"
 )
 
 var (
@@ -24,7 +26,7 @@ func init() {
 	}
 }
 
-func myLog(parent *Terraform, level, msg string) {
+func myLog(parent *tftype.Terraform, level, msg string) {
 	log.Printf("[%s][%s][%s] %s", level, parent.Kind, parent.Name, msg)
 }
 
@@ -65,7 +67,7 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var err error
-		var desiredStatus *TerraformOperatorStatus
+		var desiredStatus *tftype.TerraformOperatorStatus
 		var desiredChildren *[]interface{}
 		var parentType ParentType
 		switch req.Parent.Kind {
