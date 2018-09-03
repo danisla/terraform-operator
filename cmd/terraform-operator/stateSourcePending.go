@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, podName string) (tftype.TerraformConfigSourceData, error) {
+func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, podName string) (TerraformConfigSourceData, error) {
 
 	// Map of ConfigMap source names to content hashes.
 	configMapHashes := make(tftype.ConfigMapHashes, 0)
@@ -19,10 +19,13 @@ func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, pod
 
 	gcsObjects := make(tftype.GCSObjects, 0)
 
-	sourceData := tftype.TerraformConfigSourceData{
-		ConfigMapHashes: &configMapHashes,
-		ConfigMapKeys:   &configMapKeys,
-		GCSObjects:      &gcsObjects,
+	embeddedConfigMaps := make(tftype.EmbeddedConfigMaps, 0)
+
+	sourceData := TerraformConfigSourceData{
+		ConfigMapHashes:    &configMapHashes,
+		ConfigMapKeys:      &configMapKeys,
+		GCSObjects:         &gcsObjects,
+		EmbeddedConfigMaps: &embeddedConfigMaps,
 	}
 
 	// At least 1 source is required.
@@ -43,7 +46,7 @@ func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, pod
 
 			err = validateConfigMapSource(configMapData)
 			if err != nil {
-				return sourceData, fmt.Errorf("%s ConfigMap source data is invalid: %v", configMapName, err)
+				return sourceData, fmt.Errorf("ConfigMap source %s data is invalid: %v", configMapName, err)
 			}
 
 			configMapHash, err := toSha1(configMapData)
@@ -76,17 +79,94 @@ func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, pod
 
 			*desiredChildren = append(*desiredChildren, configMap)
 
+			embeddedConfigMaps = append(embeddedConfigMaps, configMapName)
+
 			for k := range configMap.Data {
 				tuple := []string{configMapName, k}
 				configMapKeys = append(configMapKeys, tuple)
 			}
 
-			myLog(parent, "INFO", fmt.Sprintf("Including embedded source %d from spec", i))
+			myLog(parent, "INFO", fmt.Sprintf("Including embedded source[%d] from spec", i))
+
 		}
 
 		if source.GCS != "" {
-			myLog(parent, "INFO", fmt.Sprintf("Including GCS source %d: %s", i, source.GCS))
+			myLog(parent, "INFO", fmt.Sprintf("Including GCS source[%d]: %s", i, source.GCS))
 			gcsObjects = append(gcsObjects, source.GCS)
+		}
+
+		if source.TFApply != "" {
+			if source.TFApply == parent.Name && parent.Kind == "TerraformApply" {
+				return sourceData, fmt.Errorf("Circular reference to TerraformApply source[%d]: %s", i, source.TFApply)
+			}
+
+			myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply source[%d]: %s", i, source.TFApply))
+			tfapply, err := getTerraformApply(parent.Namespace, source.TFApply)
+			if err != nil {
+				return sourceData, fmt.Errorf("Waiting for source TerraformApply: %s", source.TFApply)
+			}
+
+			// ConfigMaps generated from embedded source.
+			for _, configMapName := range tfapply.Status.Sources.EmbeddedConfigMaps {
+				configMapData, err := getConfigMapSourceData(tfapply.ObjectMeta.Namespace, configMapName)
+				if err != nil {
+					// Wait for configmap to become available.
+					return sourceData, fmt.Errorf("Waiting for TerraformApply %s source embedded ConfigMap: %s", source.TFApply, configMapName)
+				}
+
+				configMapHash, err := toSha1(configMapData)
+				if err != nil {
+					return sourceData, err
+				}
+
+				configMapHashes[configMapName] = configMapHash
+
+				for k := range configMapData {
+					tuple := []string{configMapName, k}
+					configMapKeys = append(configMapKeys, tuple)
+				}
+
+				myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply %s embedded ConfigMap source with %d keys: %s", source.TFApply, len(configMapData), configMapName))
+			}
+
+			for j, tfsource := range tfapply.Spec.Sources {
+
+				// ConfigMap source
+				if tfsource.ConfigMap.Name != "" {
+					configMapName := tfsource.ConfigMap.Name
+
+					configMapData, err := getConfigMapSourceData(tfapply.ObjectMeta.Namespace, configMapName)
+					if err != nil {
+						// Wait for configmap to become available.
+						return sourceData, fmt.Errorf("Waiting for TerraformApply %s source ConfigMap: %s", source.TFApply, configMapName)
+					}
+
+					err = validateConfigMapSource(configMapData)
+					if err != nil {
+						return sourceData, fmt.Errorf("TerraformApply %s ConfigMap source %s data is invalid: %v", source.TFApply, configMapName, err)
+					}
+
+					configMapHash, err := toSha1(configMapData)
+					if err != nil {
+						return sourceData, err
+					}
+
+					configMapHashes[configMapName] = configMapHash
+
+					for k := range configMapData {
+						tuple := []string{configMapName, k}
+						configMapKeys = append(configMapKeys, tuple)
+					}
+
+					myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply %s ConfigMap source[%d] with %d keys: %s", source.TFApply, j, len(configMapData), configMapName))
+				}
+
+				// GCS source
+				if tfsource.GCS != "" {
+					myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply %s GCS source[%d]: %s", source.TFApply, j, tfsource.GCS))
+					gcsObjects = append(gcsObjects, tfsource.GCS)
+				}
+			}
 		}
 	}
 

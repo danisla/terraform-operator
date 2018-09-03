@@ -33,7 +33,7 @@ type TFPod struct {
 	Namespace          string
 	ProjectID          string
 	Workspace          string
-	SourceData         tftype.TerraformConfigSourceData
+	SourceData         TerraformConfigSourceData
 	ProviderConfigKeys map[string][]string
 	BackendBucket      string
 	BackendPrefix      string
@@ -41,6 +41,7 @@ type TFPod struct {
 	TFPlan             string
 	TFInputs           map[string]string
 	TFVars             map[string]string
+	TFVarsFrom         map[string]string
 }
 
 func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, error) {
@@ -202,6 +203,18 @@ func (tfp *TFPod) makeEnvVars(podName string) []corev1.EnvVar {
 	// TFVars
 	var tfVarEnv = regexp.MustCompile(`^TF_VAR_.*$`)
 	for k, v := range tfp.TFVars {
+		varName := k
+		if !tfVarEnv.MatchString(v) {
+			varName = fmt.Sprintf("TF_VAR_%s", varName)
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  varName,
+			Value: v,
+		})
+	}
+
+	// TFVarsFrom
+	for k, v := range tfp.TFVarsFrom {
 		varName := k
 		if !tfVarEnv.MatchString(v) {
 			varName = fmt.Sprintf("TF_VAR_%s", varName)

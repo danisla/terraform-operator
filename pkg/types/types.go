@@ -27,6 +27,7 @@ type TerraformSpec struct {
 	TFPlan          string                                 `json:"tfplan,omitempty"`
 	TFInputs        []TerraformConfigInputs                `json:"tfinputs,omitempty"`
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
+	TFVarsFrom      []TerraformConfigVarsFrom              `json:"tfvarsFrom,omitempty"`
 	MaxAttempts     int                                    `json:"maxAttempts,omitempty"`
 }
 
@@ -40,19 +41,18 @@ type TerraformConfigSource struct {
 	ConfigMap TerraformSourceConfigMap `json:"configMap,omitempty"`
 	Embedded  string                   `json:"embedded,omitempty"`
 	GCS       string                   `json:"gcs,omitempty"`
-}
-
-// TerraformConfigSourceData is the structure of all of the extracted config sources used by the Terraform Pod.
-type TerraformConfigSourceData struct {
-	ConfigMapHashes *ConfigMapHashes
-	ConfigMapKeys   *ConfigMapKeys
-	GCSObjects      *GCSObjects
+	TFApply   string                   `json:"tfapply,omitempty"`
 }
 
 // TerraformSourceConfigMap is the spec defining a config map source for terraform config.
 type TerraformSourceConfigMap struct {
 	Name    string `json:"name,omitempty"`
 	Trigger bool   `json:"trigger,omitempty"`
+}
+
+// TerraformConfigVarsFrom is the spec for referencing TFVars from another object.
+type TerraformConfigVarsFrom struct {
+	TFApply string `json:"tfapply,omitempty"`
 }
 
 // TerraformConfigInputs is the structure defining how to use output vars from other TerraformApply resources
@@ -80,7 +80,8 @@ type TerraformOperatorStatus struct {
 
 // TerraformOperatorStatusSources describes the status.sources structure.
 type TerraformOperatorStatusSources struct {
-	ConfigMapHashes ConfigMapHashes `json:"configMapHashes"`
+	ConfigMapHashes    ConfigMapHashes    `json:"configMapHashes"`
+	EmbeddedConfigMaps EmbeddedConfigMaps `json:"embeddedConfigMaps"`
 }
 
 // ConfigMapKeys is an ordered list of source keys as they appeard in the spec.
@@ -92,6 +93,9 @@ type GCSObjects []string
 
 // ConfigMapHashes is a map of configmap names to a has of the data spec.
 type ConfigMapHashes map[string]string
+
+// EmbeddedConfigMaps is a list of ConfigMap names generated to hold the embedded source.
+type EmbeddedConfigMaps []string
 
 // TerraformOutputVar is the structure of a terraform output variable from `terraform output -json`
 type TerraformOutputVar struct {

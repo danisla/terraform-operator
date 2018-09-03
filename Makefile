@@ -2,10 +2,7 @@ TAG = latest
 
 KANIKO_SA_KEY := ${HOME}/.kaniko-sa-key.json
 
-all: install
-
-install:
-	go install
+all: image
 
 image:
 	docker build -t gcr.io/cloud-solutions-group/terraform-operator:$(TAG) .

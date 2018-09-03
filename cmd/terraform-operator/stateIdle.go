@@ -54,6 +54,13 @@ func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.T
 		return StateTFInputPending, nil
 	}
 
+	// Wait for any TFVarsFrom sources
+	tfVarsFrom, err := getTFVarsFrom(parent)
+	if err != nil {
+		myLog(parent, "WARN", fmt.Sprintf("%v", err))
+		return StateTFVarsFromPending, nil
+	}
+
 	// Wait for any TerraformPlan
 	tfplanFile, err := getTFPlanFile(parent)
 	if err != nil {
@@ -79,9 +86,11 @@ func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.T
 		TFPlan:             tfplanFile,
 		TFInputs:           tfInputVars,
 		TFVars:             parent.Spec.TFVars,
+		TFVarsFrom:         tfVarsFrom,
 	}
 
 	status.Sources.ConfigMapHashes = *sourceData.ConfigMapHashes
+	status.Sources.EmbeddedConfigMaps = *sourceData.EmbeddedConfigMaps
 
 	// Make Terraform Pod
 	var pod corev1.Pod

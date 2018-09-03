@@ -34,6 +34,10 @@ func makeStatus(parent *tftype.Terraform, children *TerraformOperatorRequestChil
 		status.Sources.ConfigMapHashes = parent.Status.Sources.ConfigMapHashes
 	}
 
+	if parent.Status.Sources.EmbeddedConfigMaps != nil {
+		status.Sources.EmbeddedConfigMaps = parent.Status.Sources.EmbeddedConfigMaps
+	}
+
 	if parent.Status.PodName != "" && changed == false {
 		status.PodName = parent.Status.PodName
 	}

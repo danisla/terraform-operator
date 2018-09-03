@@ -43,6 +43,8 @@ const (
 	StateTFPlanPending = tftype.TerraformOperatorState("TFPLAN_PENDING")
 	// StateTFInputPending means the controller is waiting for one or more tfapply objects.
 	StateTFInputPending = tftype.TerraformOperatorState("TFINPUT_PENDING")
+	// StateTFVarsFromPending means the controller is waiting to read tfvars from another object.
+	StateTFVarsFromPending = tftype.TerraformOperatorState("TFVARSFROM_PENDING")
 	// StatePodRunning means the controller is waiting for the terraform pod to complete.
 	StatePodRunning = tftype.TerraformOperatorState("POD_RUNNING")
 	// StateRetry means a pod has failed and is being retried up to MaxAttempts times.
@@ -83,4 +85,12 @@ type TerraformInputVars map[string]string
 type TerraformSpecCredentials struct {
 	Name string `json:"name,omitempty"`
 	Key  string `json:"key,omitempty"`
+}
+
+// TerraformConfigSourceData is the structure of all of the extracted config sources used by the Terraform Pod.
+type TerraformConfigSourceData struct {
+	ConfigMapHashes    *tftype.ConfigMapHashes
+	ConfigMapKeys      *tftype.ConfigMapKeys
+	GCSObjects         *tftype.GCSObjects
+	EmbeddedConfigMaps *tftype.EmbeddedConfigMaps
 }

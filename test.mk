@@ -64,16 +64,16 @@ kind: {{KIND}}
 metadata:
   name: {{NAME}}
 spec:
-image: {{IMAGE}}
-imagePullPolicy: Always
-backendBucket: {{BACKEND_BUCKET}}
-backendPrefix: {{BACKEND_PREFIX}}
-providerConfig:
-  google:
-    secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
-sources:
-- embedded: |-  
-    $(subst $(newline),\n    ,$(TF_TEST_SRC))
+  image: {{IMAGE}}
+  imagePullPolicy: Always
+  backendBucket: {{BACKEND_BUCKET}}
+  backendPrefix: {{BACKEND_PREFIX}}
+  providerConfig:
+    google:
+      secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
+  sources:
+  - embedded: |-  
+      $(subst $(newline),\n      ,$(TF_TEST_SRC))
   tfvars:
     region: us-central1
 endef
