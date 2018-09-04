@@ -91,7 +91,7 @@ type ConfigMapKeys [][]string
 // GCSObjects is a list of GCS URLs containing terraform source bundles.
 type GCSObjects []string
 
-// ConfigMapHashes is a map of configmap names to a has of the data spec.
+// ConfigMapHashes is a map of configmap names to a hash of the data spec.
 type ConfigMapHashes map[string]string
 
 // EmbeddedConfigMaps is a list of ConfigMap names generated to hold the embedded source.

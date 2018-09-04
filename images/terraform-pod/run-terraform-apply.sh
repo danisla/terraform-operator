@@ -20,6 +20,9 @@ EOF
   gsutil cp ${tfplan} ${dest}
 }
 
+# Decode any *.b64 files
+find . -maxdepth 1 -mindepth 1 -name "*.b64" -exec sh -c "base64 -d {} > \$(basename {} .b64)" \;
+
 terraform version
 
 cat > backend.tf <<EOF

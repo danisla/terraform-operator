@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -262,6 +263,7 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 	})
 
 	// ConfigMap volumes
+	var defaultMode int32 = 438
 	for k := range *tfp.SourceData.ConfigMapHashes {
 		volumes = append(volumes, corev1.Volume{
 			Name: k,
@@ -270,6 +272,7 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: k,
 					},
+					DefaultMode: &defaultMode,
 				},
 			},
 		})
@@ -347,6 +350,16 @@ func makeOrdinalPodName(parentType ParentType, parent *tftype.Terraform, childre
 }
 
 func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
+	// Base64 encode the source data so that it doesn't break the metacontroller JSON encoder.
+	// The file will be decoded by the terraform operator pod script.
+	cmData := strings.TrimSpace(data)
+	keyName := "main.tf.b64"
+
+	// Only convert to base64 if not already base64
+	if _, err := base64.StdEncoding.DecodeString(cmData); err != nil {
+		cmData = base64.StdEncoding.EncodeToString([]byte(cmData))
+	}
+
 	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -354,7 +367,7 @@ func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Data: map[string]string{
-			"main.tf": data,
+			keyName: cmData,
 		},
 	}
 	return cm

@@ -1,4 +1,4 @@
-TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml job3-cm-tfplan-inputs.yaml job4-gcs-tfplan.yaml
+TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml job3-cm-tfplan-inputs.yaml job4-gcs-tfplan.yaml job5-src-b64-tfplan.yaml
 TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job1-cm-tfapply-tfplan.yaml job2-src-tfapply.yaml job4-gcs-tfapply.yaml
 TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job2-src-tfdestroy.yaml job4-gcs-tfdestroy.yaml
 
@@ -18,6 +18,9 @@ backend_bucket: project
 define TF_TEST_SRC
 variable "region" {
   default = "us-central1"
+}
+variable "escape_test" {
+  default = "%"
 }
 provider "google" {
   region = "$${var.region}"
@@ -74,6 +77,25 @@ spec:
   sources:
   - embedded: |-  
       $(subst $(newline),\n      ,$(TF_TEST_SRC))
+  tfvars:
+    region: us-central1
+endef
+
+define TEST_JOB_SRC_B64
+apiVersion: ctl.isla.solutions/v1
+kind: {{KIND}}
+metadata:
+  name: {{NAME}}
+spec:
+  image: {{IMAGE}}
+  imagePullPolicy: Always
+  backendBucket: {{BACKEND_BUCKET}}
+  backendPrefix: {{BACKEND_PREFIX}}
+  providerConfig:
+    google:
+      secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
+  sources:
+  - embedded: {{SRC_B64}}
   tfvars:
     region: us-central1
 endef
@@ -250,6 +272,20 @@ tests/job%-src-tfdestroy.yaml: backend_bucket
 	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	> $@
+
+export TF_TEST_SRC
+export TEST_JOB_SRC_B64
+tests/job%-src-b64-tfplan.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_SRC_B64}" | \
+	sed -e "s/{{KIND}}/TerraformPlan/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{SRC_B64}}/$$(echo "$${TF_TEST_SRC}" | base64)/g" \
 	> $@
 
 ### END Tests with embedded terraform ###
