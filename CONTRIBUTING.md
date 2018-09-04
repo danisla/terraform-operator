@@ -52,6 +52,12 @@ spec:
 make install-metacontroller
 ```
 
+4. Install the terraform-operator:
+
+```
+make install-terraform-operator
+```
+
 4. Install provider credentials:
 
 ```

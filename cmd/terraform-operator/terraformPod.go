@@ -257,7 +257,7 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 		Name: "state",
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{
-				Medium: "",
+				Medium: corev1.StorageMediumMemory,
 			},
 		},
 	})
