@@ -19,7 +19,7 @@ metadata:
   name: terraform-operator-plan
 spec:
   generateSelector: true
-  resyncPeriodSeconds: 4
+  resyncPeriodSeconds: 60
   parentResource:
     apiVersion: ctl.isla.solutions/v1
     resource: terraformplans
@@ -55,7 +55,7 @@ metadata:
   name: terraform-operator-apply
 spec:
   generateSelector: true
-  resyncPeriodSeconds: 4
+  resyncPeriodSeconds: 60
   parentResource:
     apiVersion: ctl.isla.solutions/v1
     resource: terraformapplys
@@ -91,7 +91,7 @@ metadata:
   name: terraform-operator-destroy
 spec:
   generateSelector: true
-  resyncPeriodSeconds: 4
+  resyncPeriodSeconds: 60
   parentResource:
     apiVersion: ctl.isla.solutions/v1
     resource: terraformdestroys
