@@ -66,6 +66,16 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 					// Populate status.TFPlan from completed pod annotation.
 					if plan, ok := pod.Annotations["terraform-plan"]; ok == true {
 						status.TFPlan = plan
+
+						// Parse the plan
+						summary, err := parseTerraformPlan(plan)
+						if err != nil {
+							myLog(parent, "ERROR", fmt.Sprintf("Failed to parse terraform plan file: %s: %v", plan, err))
+							return StateIdle, nil
+						}
+
+						status.TFPlanDiff = &summary
+
 					} else {
 						myLog(parent, "ERROR", fmt.Sprintf("terraform-plan annotation not found on successful pod completion: %s", pod.Name))
 					}

@@ -49,18 +49,6 @@ define newline
 
 endef
 
-define TEST_CM
-apiVersion: v1
-kind: ConfigMap 
-metadata: 
-  name: {{NAME}}
-data: 
-  terraform.tfvars: |-
-    region = "us-central1"
-  main.tf: |-
-    $(subst $(newline),\n    ,$(TF_TEST_SRC))
-endef
-
 define TEST_JOB_SRC
 apiVersion: ctl.isla.solutions/v1
 kind: {{KIND}}
@@ -75,8 +63,8 @@ spec:
     google:
       secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
   sources:
-  - embedded: |-  
-      $(subst $(newline),\n      ,$(TF_TEST_SRC))
+  - embedded: |-
+      $(subst $(newline),$(newline)      ,$(TF_TEST_SRC))
   tfvars:
     region: us-central1
 endef
@@ -170,12 +158,12 @@ endef
 credentials: $(GOOGLE_CREDENTIALS_SA_KEY) project
 	kubectl create secret generic $(GOOGLE_PROVIDER_SECRET_NAME) --from-literal=GOOGLE_PROJECT=$(PROJECT) --from-file=GOOGLE_CREDENTIALS=$(GOOGLE_CREDENTIALS_SA_KEY)
 
-export TEST_CM
-tests/job%-cm.yaml: project
+tests/job%-cm.yaml: project tests/main.tf
 	@mkdir -p tests
-	@echo "$${TEST_CM}" | \
-	sed -e "s/{{NAME}}/job$*-tf/g" \
-        -e "s/{{PROJECT}}/$(PROJECT)/g" \
+	@kubectl create configmap job$*-tf \
+	  --from-file=main.tf=tests/main.tf \
+		--dry-run \
+		-o yaml \
 	> $@
 
 ### BEGIN Tests with ConfigMap source ###
@@ -239,9 +227,9 @@ tests/job%-cm-tfdestroy.yaml: backend_bucket
 
 ### BEGIN Tests with embedded terraform ###
 export TEST_JOB_SRC
-tests/job%-src-tfplan.yaml: backend_bucket
+tests/job%-src-tfplan.yaml: backend_bucket tests/main.tf
 	@mkdir -p tests
-	@echo "$${TEST_JOB_SRC}" | \
+	echo "$${TEST_JOB_SRC}" | \
 	sed -e "s/{{KIND}}/TerraformPlan/g" \
 	    -e "s/{{NAME}}/job$*/g" \
 	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
@@ -276,7 +264,7 @@ tests/job%-src-tfdestroy.yaml: backend_bucket
 
 export TF_TEST_SRC
 export TEST_JOB_SRC_B64
-tests/job%-src-b64-tfplan.yaml: backend_bucket
+tests/job%-src-b64-tfplan.yaml: backend_bucket tests/main.tf
 	@mkdir -p tests
 	@echo "$${TEST_JOB_SRC_B64}" | \
 	sed -e "s/{{KIND}}/TerraformPlan/g" \
@@ -285,7 +273,7 @@ tests/job%-src-b64-tfplan.yaml: backend_bucket
 	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
 	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
 	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
-	    -e "s/{{SRC_B64}}/$$(echo "$${TF_TEST_SRC}" | base64)/g" \
+	    -e "s/{{SRC_B64}}/$(shell base64 tests/main.tf)/g" \
 	> $@
 
 ### END Tests with embedded terraform ###

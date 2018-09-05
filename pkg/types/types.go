@@ -72,6 +72,7 @@ type TerraformOperatorStatus struct {
 	FinishedAt     string                         `json:"finishedAt"`
 	Duration       string                         `json:"duration"`
 	TFPlan         string                         `json:"planFile"`
+	TFPlanDiff     *TerraformPlanFileSummary      `json"planDiff"`
 	TFOutput       map[string]TerraformOutputVar  `json:"outputs"`
 	RetryCount     int                            `json:"retryCount"`
 	Workspace      string                         `json:"workspace"`
@@ -82,6 +83,13 @@ type TerraformOperatorStatus struct {
 type TerraformOperatorStatusSources struct {
 	ConfigMapHashes    ConfigMapHashes    `json:"configMapHashes"`
 	EmbeddedConfigMaps EmbeddedConfigMaps `json:"embeddedConfigMaps"`
+}
+
+// TerraformPlanFileSummary summarizes the changes in a terraform plan
+type TerraformPlanFileSummary struct {
+	Added     int `json:"added"`
+	Changed   int `json:"changed"`
+	Destroyed int `json:"destroyed"`
 }
 
 // ConfigMapKeys is an ordered list of source keys as they appeard in the spec.
