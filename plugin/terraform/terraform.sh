@@ -111,6 +111,23 @@ EOF
     usage
 }
 
+function clean() {
+    local name=$1
+
+    while [[ -z "${input}" ]]; do
+        printf "\n  "
+        read -p "Remove all tfplan,tfapply,tfdestory resources for '${name}'? (yes/no): " input
+    done
+
+    if [[ "${input,,}" == "yes" ]]; then
+        namespace=${KUBECTL_PLUGINS_CURRENT_NAMESPACE:-"default"}
+
+        kubectl -n ${namespace} delete tfplan,tfapply,tfdestroy kterraform-${name}
+    else
+        echo "Aborting"
+    fi
+}
+
 function makeBucket() {
     local name=$1
     gsutil mb "gs://$name"
@@ -348,11 +365,11 @@ function terraformDestroy() {
 }
 
 function usage() {
-    echo "USAGE: kubectl plugin terraform <configure|plan [<name|default>]|apply [<name>|default]|destroy [<name>|default]>" >&2
+    echo "USAGE: kubectl plugin terraform <configure|clean [<name|default>]|plan [<name|default>]|apply [<name>|default]|destroy [<name>|default]>" >&2
 }
 
 function getUserCwd() {
-    lsof -p $PPID | awk '/cwd/{ print $9 }'
+    lsof -p $PPID 2>/dev/null | awk '/cwd/{ print $9 }'
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -363,6 +380,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     case "$action" in
         configure)
             configure
+            ;;
+        clean)
+            clean "${name}"
             ;;
         plan)
             terraformPlan $(getUserCwd) "${name}"
