@@ -14,6 +14,9 @@ install-metacontroller:
 	kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/metacontroller/master/manifests/metacontroller-rbac.yaml
 	kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/metacontroller/master/manifests/metacontroller.yaml
 
+lpods:
+	kubectl -n metacontroller get pods
+	
 metalogs:
 	kubectl -n metacontroller logs --tail=200 -f metacontroller-0
 
