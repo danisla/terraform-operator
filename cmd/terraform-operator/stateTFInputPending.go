@@ -14,7 +14,7 @@ func getTFInputs(parent *tftype.Terraform) (TerraformInputVars, error) {
 
 	// Wait for tfinputs
 	for _, tfinput := range parent.Spec.TFInputs {
-		tfapply, err := getTerraformApply(parent.ObjectMeta.Namespace, tfinput.Name)
+		tfapply, err := getTerraform("tfapply", parent.ObjectMeta.Namespace, tfinput.Name)
 		if err != nil {
 			return tfInputVars, fmt.Errorf("Waiting for TerraformApply/%s", tfinput.Name)
 		} else {
@@ -45,12 +45,12 @@ func getTFInputs(parent *tftype.Terraform) (TerraformInputVars, error) {
 	return tfInputVars, nil
 }
 
-func getTerraformApply(namespace string, name string) (tftype.Terraform, error) {
+func getTerraform(kind string, namespace string, name string) (tftype.Terraform, error) {
 	var tfapply tftype.Terraform
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.Command("kubectl", "get", "tfapply", "-n", namespace, name, "-o", "yaml")
+	cmd := exec.Command("kubectl", "get", kind, "-n", namespace, name, "-o", "yaml")
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 

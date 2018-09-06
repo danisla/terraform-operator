@@ -13,7 +13,7 @@ func getTFVarsFrom(parent *tftype.Terraform) (TerraformInputVars, error) {
 		if varsFrom.TFApply != "" {
 			tfApplyName := varsFrom.TFApply
 
-			tfapply, err := getTerraformApply(parent.Namespace, tfApplyName)
+			tfapply, err := getTerraform("tfapply", parent.Namespace, tfApplyName)
 			if err != nil {
 				return tfVars, fmt.Errorf("Waiting for tfvarsFrom TerraformApply: %s", tfApplyName)
 			}
