@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
 
 	tftype "github.com/danisla/terraform-operator/pkg/types"
-	"github.com/ghodss/yaml"
 )
 
 func getTFPlanFile(parent *tftype.Terraform) (string, error) {
@@ -18,7 +15,7 @@ func getTFPlanFile(parent *tftype.Terraform) (string, error) {
 
 	if parent.Spec.TFPlan != "" {
 
-		tfplan, err = getTerraformPlan(parent.ObjectMeta.Namespace, parent.Spec.TFPlan)
+		tfplan, err = getTerraform("tfplan", parent.ObjectMeta.Namespace, parent.Spec.TFPlan)
 		if err != nil {
 			return tfplanFile, fmt.Errorf("Waiting for TerraformPlan/%s", parent.Spec.TFPlan)
 		}
@@ -33,23 +30,4 @@ func getTFPlanFile(parent *tftype.Terraform) (string, error) {
 	}
 
 	return tfplanFile, nil
-}
-
-func getTerraformPlan(namespace string, name string) (tftype.Terraform, error) {
-	var tfplan tftype.Terraform
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
-	cmd := exec.Command("kubectl", "get", "tfplan", "-n", namespace, name, "-o", "yaml")
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		return tfplan, fmt.Errorf("Failed to run kubectl: %s\n%v", stderr.String(), err)
-	}
-
-	err = yaml.Unmarshal(stdout.Bytes(), &tfplan)
-
-	return tfplan, err
 }

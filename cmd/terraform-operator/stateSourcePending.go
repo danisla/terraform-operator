@@ -95,23 +95,52 @@ func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, pod
 			gcsObjects = append(gcsObjects, source.GCS)
 		}
 
-		if source.TFApply != "" {
+		if source.TFApply != "" || source.TFPlan != "" {
+
 			if source.TFApply == parent.Name && parent.Kind == "TerraformApply" {
 				return sourceData, fmt.Errorf("Circular reference to TerraformApply source[%d]: %s", i, source.TFApply)
 			}
 
-			myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply source[%d]: %s", i, source.TFApply))
-			tfapply, err := getTerraformApply(parent.Namespace, source.TFApply)
-			if err != nil {
-				return sourceData, fmt.Errorf("Waiting for source TerraformApply: %s", source.TFApply)
+			if source.TFPlan == parent.Name && parent.Kind == "TerraformPlan" {
+				return sourceData, fmt.Errorf("Circular reference to TerraformPlan source[%d]: %s", i, source.TFPlan)
+			}
+
+			sourceKind := "TerraformApply"
+			sourceName := source.TFApply
+
+			var tf tftype.Terraform
+
+			tfapply, tfapplyErr := getTerraform("tfapply", parent.Namespace, source.TFApply)
+			tfplan, tfplanErr := getTerraform("tfplan", parent.Namespace, source.TFPlan)
+
+			if source.TFApply != "" && source.TFPlan != "" && tfapplyErr != nil && tfplanErr != nil {
+				// no source available yet.
+				return sourceData, fmt.Errorf("Waiting for either source TerraformPlan: '%s', or source TerraformApply: '%s'", source.TFPlan, source.TFApply)
+			}
+
+			if tfapplyErr == nil {
+				// Prefer tfapply if both were specified.
+				tf = tfapply
+				myLog(parent, "INFO", fmt.Sprintf("Including %s source[%d]: %s", sourceKind, i, source.TFApply))
+			} else if tfplanErr == nil {
+				tf = tfplan
+				sourceKind = "TerraformPlan"
+				sourceName = source.TFPlan
+				myLog(parent, "INFO", fmt.Sprintf("Including %s source[%d]: %s", sourceKind, i, source.TFPlan))
+			} else {
+				if source.TFPlan != "" {
+					return sourceData, fmt.Errorf("Waiting for source TerraformPlan: %s", source.TFPlan)
+				} else {
+					return sourceData, fmt.Errorf("Waiting for source TerraformApply: %s", source.TFApply)
+				}
 			}
 
 			// ConfigMaps generated from embedded source.
-			for _, configMapName := range tfapply.Status.Sources.EmbeddedConfigMaps {
-				configMapData, err := getConfigMapSourceData(tfapply.ObjectMeta.Namespace, configMapName)
+			for _, configMapName := range tf.Status.Sources.EmbeddedConfigMaps {
+				configMapData, err := getConfigMapSourceData(tf.ObjectMeta.Namespace, configMapName)
 				if err != nil {
 					// Wait for configmap to become available.
-					return sourceData, fmt.Errorf("Waiting for TerraformApply %s source embedded ConfigMap: %s", source.TFApply, configMapName)
+					return sourceData, fmt.Errorf("Waiting for %s %s source embedded ConfigMap: %s", sourceKind, sourceName, configMapName)
 				}
 
 				configMapHash, err := toSha1(configMapData)
@@ -126,24 +155,24 @@ func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, pod
 					configMapKeys = append(configMapKeys, tuple)
 				}
 
-				myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply %s embedded ConfigMap source with %d keys: %s", source.TFApply, len(configMapData), configMapName))
+				myLog(parent, "INFO", fmt.Sprintf("Including %s %s embedded ConfigMap source with %d keys: %s", sourceKind, sourceName, len(configMapData), configMapName))
 			}
 
-			for j, tfsource := range tfapply.Spec.Sources {
+			for j, tfsource := range tf.Spec.Sources {
 
 				// ConfigMap source
 				if tfsource.ConfigMap.Name != "" {
 					configMapName := tfsource.ConfigMap.Name
 
-					configMapData, err := getConfigMapSourceData(tfapply.ObjectMeta.Namespace, configMapName)
+					configMapData, err := getConfigMapSourceData(tf.ObjectMeta.Namespace, configMapName)
 					if err != nil {
 						// Wait for configmap to become available.
-						return sourceData, fmt.Errorf("Waiting for TerraformApply %s source ConfigMap: %s", source.TFApply, configMapName)
+						return sourceData, fmt.Errorf("Waiting for %s %s source ConfigMap: %s", sourceKind, sourceName, configMapName)
 					}
 
 					err = validateConfigMapSource(configMapData)
 					if err != nil {
-						return sourceData, fmt.Errorf("TerraformApply %s ConfigMap source %s data is invalid: %v", source.TFApply, configMapName, err)
+						return sourceData, fmt.Errorf("%s %s ConfigMap source %s data is invalid: %v", sourceKind, sourceName, configMapName, err)
 					}
 
 					configMapHash, err := toSha1(configMapData)
@@ -158,12 +187,12 @@ func getSourceData(parent *tftype.Terraform, desiredChildren *[]interface{}, pod
 						configMapKeys = append(configMapKeys, tuple)
 					}
 
-					myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply %s ConfigMap source[%d] with %d keys: %s", source.TFApply, j, len(configMapData), configMapName))
+					myLog(parent, "INFO", fmt.Sprintf("Including %s %s ConfigMap source[%d] with %d keys: %s", sourceKind, sourceName, j, len(configMapData), configMapName))
 				}
 
 				// GCS source
 				if tfsource.GCS != "" {
-					myLog(parent, "INFO", fmt.Sprintf("Including TerraformApply %s GCS source[%d]: %s", source.TFApply, j, tfsource.GCS))
+					myLog(parent, "INFO", fmt.Sprintf("Including %s %s GCS source[%d]: %s", sourceKind, sourceName, j, tfsource.GCS))
 					gcsObjects = append(gcsObjects, tfsource.GCS)
 				}
 			}

@@ -1,6 +1,6 @@
 TEST_PLAN_ARTIFACTS := job1-cm.yaml job1-cm-tfplan.yaml job2-src-tfplan.yaml job3-cm-tfplan-inputs.yaml job4-gcs-tfplan.yaml job5-src-b64-tfplan.yaml
 TEST_APPLY_ARTIFACTS := job1-cm.yaml job1-cm-tfapply.yaml job1-cm-tfapply-tfplan.yaml job2-src-tfapply.yaml job4-gcs-tfapply.yaml
-TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job2-src-tfdestroy.yaml job4-gcs-tfdestroy.yaml
+TEST_DESTROY_ARTIFACTS := job1-cm.yaml job1-cm-tfdestroy.yaml job2-src-tfdestroy.yaml job4-gcs-tfdestroy.yaml job2-tfplan-tfdestroy.yaml job2-tfapply-tfdestroy.yaml job2-tfplan-tfapply-tfdestroy.yaml
 
 IMAGE := "gcr.io/cloud-solutions-group/terraform-pod:latest"
 
@@ -155,6 +155,26 @@ spec:
     region: us-central1
 endef
 
+define TEST_JOB_TF_SRC
+apiVersion: ctl.isla.solutions/v1
+kind: {{KIND}}
+metadata:
+  name: {{NAME}}
+spec:
+  image: {{IMAGE}}
+  imagePullPolicy: Always
+  backendBucket: {{BACKEND_BUCKET}}
+  backendPrefix: {{BACKEND_PREFIX}}
+  providerConfig:
+    google:
+      secretName: {{GOOGLE_PROVIDER_SECRET_NAME}}
+  sources:
+  {{TFPLAN_SRC}}
+  {{TFAPPLY_SRC}}
+  tfvars:
+    region: us-central1
+endef
+
 credentials: $(GOOGLE_CREDENTIALS_SA_KEY) project
 	kubectl create secret generic $(GOOGLE_PROVIDER_SECRET_NAME) --from-literal=GOOGLE_PROJECT=$(PROJECT) --from-file=GOOGLE_CREDENTIALS=$(GOOGLE_CREDENTIALS_SA_KEY)
 
@@ -229,7 +249,7 @@ tests/job%-cm-tfdestroy.yaml: backend_bucket
 export TEST_JOB_SRC
 tests/job%-src-tfplan.yaml: backend_bucket tests/main.tf
 	@mkdir -p tests
-	echo "$${TEST_JOB_SRC}" | \
+	@echo "$${TEST_JOB_SRC}" | \
 	sed -e "s/{{KIND}}/TerraformPlan/g" \
 	    -e "s/{{NAME}}/job$*/g" \
 	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
@@ -353,6 +373,50 @@ tests/job%-gcs-tfdestroy.yaml: backend_bucket tests/job%-bundle.tgz
 	> $@
 
 ### END Tests with GCS tarball source ###
+
+### BEGIN Tests with tfplan or tfapply source ###
+export TEST_JOB_TF_SRC
+tests/job%-tfplan-tfdestroy.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_TF_SRC}" | \
+	sed -e "s/{{KIND}}/TerraformDestroy/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{TFPLAN_SRC}}/- tfplan: job$*/g" \
+			-e "s/{{TFAPPLY_SRC}}//g" \
+	> $@
+
+export TEST_JOB_TF_SRC
+tests/job%-tfplan-tfapply-tfdestroy.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_TF_SRC}" | \
+	sed -e "s/{{KIND}}/TerraformDestroy/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{TFPLAN_SRC}}/- tfplan: job$*/g" \
+	    -e "s/{{TFAPPLY_SRC}}/  tfapply: job$*/g" \
+	> $@
+
+export TEST_JOB_TF_SRC
+tests/job%-tfapply-tfdestroy.yaml: backend_bucket
+	@mkdir -p tests
+	@echo "$${TEST_JOB_TF_SRC}" | \
+	sed -e "s/{{KIND}}/TerraformDestroy/g" \
+	    -e "s/{{NAME}}/job$*/g" \
+	    -e "s|{{IMAGE}}|$(IMAGE)|g" \
+	    -e "s/{{BACKEND_BUCKET}}/$(BACKEND_BUCKET)/g" \
+	    -e "s/{{BACKEND_PREFIX}}/terraform/g" \
+	    -e "s/{{GOOGLE_PROVIDER_SECRET_NAME}}/$(GOOGLE_PROVIDER_SECRET_NAME)/g" \
+	    -e "s/{{TFPLAN_SRC}}//g" \
+			-e "s/{{TFAPPLY_SRC}}/- tfapply: job$*/g" \
+	> $@
+### END Tests with tfplan or tfapply source ###
 
 test-artifacts: $(addprefix tests/,$(TEST_ARTIFACTS))
 

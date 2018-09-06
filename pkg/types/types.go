@@ -41,6 +41,7 @@ type TerraformConfigSource struct {
 	ConfigMap TerraformSourceConfigMap `json:"configMap,omitempty"`
 	Embedded  string                   `json:"embedded,omitempty"`
 	GCS       string                   `json:"gcs,omitempty"`
+	TFPlan    string                   `json:"tfplan,omitempty"`
 	TFApply   string                   `json:"tfapply,omitempty"`
 }
 
