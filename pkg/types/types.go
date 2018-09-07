@@ -54,6 +54,7 @@ type TerraformSourceConfigMap struct {
 // TerraformConfigVarsFrom is the spec for referencing TFVars from another object.
 type TerraformConfigVarsFrom struct {
 	TFApply string `json:"tfapply,omitempty"`
+	TFPlan  string `json:"tfplan,omitempty"`
 }
 
 // TerraformConfigInputs is the structure defining how to use output vars from other TerraformApply resources
