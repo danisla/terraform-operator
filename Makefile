@@ -3,10 +3,7 @@ TAG = latest
 all: image
 
 image:
-	docker build -t gcr.io/cloud-solutions-group/terraform-operator:$(TAG) .
-
-push: image
-	docker push gcr.io/cloud-solutions-group/terraform-operator:$(TAG)
+	gcloud builds submit --config cloudbuild.yaml --project cloud-solutions-group --substitutions=TAG_NAME=$(TAG)
 
 install-metacontroller:
 	-kubectl create clusterrolebinding $(USER)-cluster-admin-binding --clusterrole=cluster-admin --user=$(shell gcloud config get-value account)

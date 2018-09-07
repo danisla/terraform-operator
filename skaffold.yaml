@@ -9,9 +9,9 @@ build:
   #   diskSizeGb: 200
   #   machineType: N1_HIGHCPU_8
   #   timeout: 900s
-  # kaniko:
-  #   gcsBucket: cloud-solutions-group-disla-kaniko
-  #   pullSecretName: kaniko-secret
-  #   namespace: default
+  kaniko:
+    gcsBucket: cloud-solutions-group-disla-kaniko
+    pullSecretName: kaniko-secret
+    namespace: default
 deploy:
   kustomize: {}
