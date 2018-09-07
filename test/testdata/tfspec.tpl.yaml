@@ -1,0 +1,22 @@
+apiVersion: ctl.isla.solutions/v1
+kind: {{.Kind}}
+metadata:
+  name: {{.Name}}
+spec:
+  image: {{.Image}}
+  imagePullPolicy: Always
+  backendBucket: {{.BackendBucket}}
+  backendPrefix: {{.BucketPrefix}}
+  providerConfig:
+    google:
+      secretName: {{.GoogleProviderSecretName}}
+  sources:
+  {{- range .ConfigMapSources }}
+  - configMap:
+      name: {{ . }}
+	  trigger: true
+  {{- end }}
+  tfvars:
+  {{- range $k, $v := .TFVarsMap }}
+	$k: $v
+  {{- end }}
