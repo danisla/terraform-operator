@@ -46,19 +46,24 @@ func healthzHandler() func(w http.ResponseWriter, r *http.Request) {
 
 func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		var req SyncRequest
+		var desiredStatus *tftype.TerraformOperatorStatus
+		var desiredChildren *[]interface{}
+		var parentType ParentType
+
 		if r.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Unsupported method\n")
+			fmt.Fprint(w, "Unsupported method\n")
 			return
 		}
 
 		if os.Getenv("HTTP_DEBUG") != "" {
 			log.Printf("---HTTP REQUEST %s %s ---", r.Method, r.URL.String())
 			reqDump, _ := httputil.DumpRequest(r, true)
-			log.Printf(string(reqDump))
+			log.Print(string(reqDump))
 		}
 
-		var req SyncRequest
 		decoder := json.NewDecoder(r.Body)
 		if err := decoder.Decode(&req); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -66,10 +71,6 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var err error
-		var desiredStatus *tftype.TerraformOperatorStatus
-		var desiredChildren *[]interface{}
-		var parentType ParentType
 		switch req.Parent.Kind {
 		case "TerraformPlan":
 			parentType = ParentPlan
@@ -96,6 +97,11 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[ERROR] Could not generate SyncResponse: %v", err)
 			return
 		}
-		fmt.Fprintf(w, string(data))
+		w.Write(data)
+
+		if os.Getenv("HTTP_DEBUG") != "" {
+			log.Printf("---JSON RESPONSE %s %s ---", r.Method, r.URL.String())
+			log.Println(string(data))
+		}
 	}
 }

@@ -77,6 +77,7 @@ type TerraformOperatorStatus struct {
 	TFPlanDiff     *TerraformPlanFileSummary      `json"planDiff"`
 	TFOutput       map[string]TerraformOutputVar  `json:"outputs"`
 	RetryCount     int                            `json:"retryCount"`
+	RetryNextAt    string                         `json:"retryNextAt"`
 	Workspace      string                         `json:"workspace"`
 	StateFile      string                         `json:"stateFile"`
 }

@@ -26,6 +26,9 @@ func stateRetry(parentType ParentType, parent *tftype.Terraform, status *tftype.
 		return StateWaitComplete, nil
 	}
 
+	nextAttemptTime := finishedAt.Add(time.Second * time.Duration(int64(backoff)))
+	status.RetryNextAt = nextAttemptTime.Format(time.RFC3339)
+
 	return StateRetry, nil
 }
 

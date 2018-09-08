@@ -35,6 +35,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 					status.PodStatus = PodStatusFailed
 
 					status.RetryCount = 0
+					status.RetryNextAt = ""
 
 					return StateIdle, nil
 				}
@@ -98,6 +99,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 
 				status.PodStatus = PodStatusPassed
 				status.RetryCount = 0
+				status.RetryNextAt = ""
 
 				// Back to StateIdle
 				return StateIdle, nil
@@ -118,12 +120,22 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 					status.PodStatus = PodStatusFailed
 
 					status.RetryCount = 0
+					status.RetryNextAt = ""
 
 					return StateIdle, nil
 				}
 
 				backoff := computeExponentialBackoff(status.RetryCount, DEFAULT_RETRY_BACKOFF_SCALE)
 				myLog(parent, "WARN", fmt.Sprintf("Attempting retry %d with backoff of %0.2fs", status.RetryCount, backoff))
+
+				finishedAt, err := time.Parse(time.RFC3339, status.FinishedAt)
+				if err != nil {
+					myLog(parent, "ERROR", fmt.Sprintf("Failed to parse status.FinishedAt: %v", err))
+					return StateRetry, nil
+				}
+
+				nextAttemptTime := finishedAt.Add(time.Second * time.Duration(int64(backoff)))
+				status.RetryNextAt = nextAttemptTime.Format(time.RFC3339)
 
 				// Transition to StateRetry
 				return StateRetry, nil
@@ -133,6 +145,9 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 				if cStatus.State.Running != nil {
 					status.StartedAt = cStatus.State.Running.StartedAt.Format(time.RFC3339)
 				}
+
+				status.RetryNextAt = ""
+				status.PodStatus = PodStatusRunning
 
 				myLog(parent, "INFO", fmt.Sprintf("Waiting for %s to complete.", pod.Name))
 			}

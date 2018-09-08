@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -350,15 +349,8 @@ func makeOrdinalPodName(parentType ParentType, parent *tftype.Terraform, childre
 }
 
 func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
-	// Base64 encode the source data so that it doesn't break the metacontroller JSON encoder.
-	// The file will be decoded by the terraform operator pod script.
 	cmData := strings.TrimSpace(data)
-	keyName := "main.tf.b64"
-
-	// Only convert to base64 if not already base64
-	if _, err := base64.StdEncoding.DecodeString(cmData); err != nil {
-		cmData = base64.StdEncoding.EncodeToString([]byte(cmData))
-	}
+	keyName := "main.tf"
 
 	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

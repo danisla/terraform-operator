@@ -24,8 +24,9 @@ const (
 // Pod status for reporting pass/fail status of pod
 const (
 	// PodStatusFailed indicates that the max attempts for retry have failed.
-	PodStatusFailed = "FAILED"
-	PodStatusPassed = "COMPLETED"
+	PodStatusFailed  = "FAILED"
+	PodStatusPassed  = "COMPLETED"
+	PodStatusRunning = "RUNNING"
 )
 
 const (

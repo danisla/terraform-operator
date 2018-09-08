@@ -82,6 +82,10 @@ func makeStatus(parent *tftype.Terraform, children *TerraformOperatorRequestChil
 		status.TFPlanDiff = parent.Status.TFPlanDiff
 	}
 
+	if parent.Status.RetryNextAt != "" && changed == false {
+		status.RetryNextAt = parent.Status.RetryNextAt
+	}
+
 	return &status
 }
 
