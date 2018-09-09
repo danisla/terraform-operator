@@ -14,7 +14,7 @@ func sync(parentType ParentType, parent *tftype.Terraform, children *TerraformOp
 
 	var err error
 	switch currState {
-	case StateNone, StateIdle, StateWaitComplete, StateSourcePending, StateTFPlanPending, StateTFInputPending, StateTFVarsFromPending, StateProviderConfigPending:
+	case StateNone, StateIdle, StateWaitComplete, StateSpecFromPending, StateSourcePending, StateTFPlanPending, StateTFInputPending, StateTFVarsFromPending, StateProviderConfigPending:
 		nextState, err = stateIdle(parentType, parent, status, children, &desiredChildren)
 
 	case StatePodRunning:

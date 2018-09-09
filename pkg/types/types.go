@@ -13,6 +13,7 @@ type Terraform struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Spec              TerraformSpec           `json:"spec,omitempty"`
+	SpecFrom          TerraformSpecFrom       `json:"specFrom,omitempty"`
 	Status            TerraformOperatorStatus `json:"status"`
 }
 
@@ -29,6 +30,13 @@ type TerraformSpec struct {
 	TFVars          map[string]string                      `json:"tfvars,omitempty"`
 	TFVarsFrom      []TerraformConfigVarsFrom              `json:"tfvarsFrom,omitempty"`
 	MaxAttempts     int                                    `json:"maxAttempts,omitempty"`
+}
+
+// TerraformSpecFrom is the the top level structure of specifying spec from antoher Terraform resource
+type TerraformSpecFrom struct {
+	TFPlan    string `json:"tfplan,omitempty"`
+	TFApply   string `json:"tfapply,omitempty"`
+	TFDestroy string `json:"tfdestroy,omitempty"`
 }
 
 // TerraformSpecProviderConfig is the structure providing the provider credentials block.

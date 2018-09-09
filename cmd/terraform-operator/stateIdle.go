@@ -11,6 +11,30 @@ import (
 func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (tftype.TerraformOperatorState, error) {
 	var err error
 
+	// Wait for any specFrom resource.
+	var specFromType, specFromName string
+	if parent.SpecFrom.TFPlan != "" {
+		specFromType = "TerraformPlan"
+		specFromName = parent.SpecFrom.TFPlan
+	} else if parent.SpecFrom.TFApply != "" {
+		specFromType = "TerraformApply"
+		specFromName = parent.SpecFrom.TFApply
+	} else if parent.SpecFrom.TFDestroy != "" {
+		specFromType = "TerraformDestroy"
+		specFromName = parent.SpecFrom.TFDestroy
+	}
+	if specFromType != "" {
+		specFromTF, err := getTerraform(specFromType, parent.GetNamespace(), specFromName)
+		if err != nil {
+			myLog(parent, "INFO", fmt.Sprintf("Waiting for %s %s spec to become available.", specFromType, specFromName))
+			return StateSpecFromPending, nil
+		}
+		if status.StateCurrent == StateSpecFromPending {
+			myLog(parent, "INFO", fmt.Sprintf("Using spec from %s %s", specFromType, specFromName))
+		}
+		parent.Spec = specFromTF.Spec
+	}
+
 	if status.StateCurrent == StateIdle && !changeDetected(parent, children, status) {
 		return StateIdle, nil
 	}

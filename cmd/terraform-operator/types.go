@@ -36,6 +36,8 @@ const (
 	StateIdle = tftype.TerraformOperatorState("IDLE")
 	// StateWaitComplete is used to indicate that a wait is complete and to transition back through the idle handler.
 	StateWaitComplete = tftype.TerraformOperatorState("WAIT_COMPLETE")
+	// StateSpecFromPending means the controller is waiting for the input spec resource to become available.
+	StateSpecFromPending = tftype.TerraformOperatorState("SPEC_FROM_PENDING")
 	// StateSourcePending means the controller is waiting for the source ConfigMap to become available.
 	StateSourcePending = tftype.TerraformOperatorState("SOURCE_PENDING")
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
