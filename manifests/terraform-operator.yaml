@@ -127,7 +127,7 @@ spec:
       serviceAccountName: terraform-operator
       containers:
       - name: terraform-operator
-        image: gcr.io/cloud-solutions-group/terraform-operator:0.3.8
+        image: gcr.io/cloud-solutions-group/terraform-operator:0.3.9
         imagePullPolicy: Always
         command: ["/usr/bin/terraform-operator"]
         # env:
