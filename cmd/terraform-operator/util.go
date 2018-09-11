@@ -2,74 +2,68 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
 
+	"github.com/buger/jsonparser"
 	tftype "github.com/danisla/terraform-operator/pkg/types"
 )
 
 func parseTerraformPlan(planfile string) (tftype.TerraformPlanFileSummary, error) {
-	var summary tftype.TerraformPlanFileSummary
+	summary := tftype.TerraformPlanFileSummary{}
 
 	tfplanjson, err := runTFJson(planfile)
 	if err != nil {
 		return summary, err
 	}
+	err = summarizeTFPlan([]byte(tfplanjson), &summary)
+	return summary, err
+}
 
-	var data map[string]interface{}
-	var currMod map[string]interface{}
-
-	err = json.Unmarshal([]byte(tfplanjson), &data)
+func summarizeTFPlan(data []byte, summary *tftype.TerraformPlanFileSummary) error {
+	modData, vt, _, err := jsonparser.Get(data, []string{}...)
 	if err != nil {
-		return summary, fmt.Errorf("Failed to unmarshal tfplan json: %v", err)
+		return err
+	}
+	if vt != jsonparser.Object {
+		return fmt.Errorf("Module data was not an object, found type: %v", vt)
 	}
 
-	nodes := []string{"root"}
-	currMod = data
+	return jsonparser.ObjectEach(modData, func(key []byte, value []byte, vt jsonparser.ValueType, offset int) error {
+		toks := strings.Split(string(key), ".")
 
-	destroy := 0
-	create := 0
-	change := 0
-
-	var n string
-	for len(nodes) > 0 {
-		n = nodes[0]
-		nodes = nodes[1:]
-
-		currMod = currMod[n].(map[string]interface{})
-
-		for k := range currMod {
-			toks := strings.Split(k, ".")
-
+		if vt == jsonparser.Object {
 			if len(toks) == 2 {
-
-				id := currMod[k].(map[string]interface{})["id"]
-				d := currMod[k].(map[string]interface{})["destroy"].(bool)
-
-				if d == true {
-					destroy++
-				} else if id != nil && id == "" {
-					create++
-				} else {
-					change++
+				// Resource
+				id, err := jsonparser.GetString(value, "id")
+				if err != nil {
+					return fmt.Errorf("Failed to extract 'id' key as string: %v", err)
 				}
 
-			} else if k == "destroy" {
-				// module destroy
-			} else {
-				// nested module
-				nodes = append(nodes, k)
+				d, err := jsonparser.GetBoolean(value, "destroy")
+				if err != nil {
+					return fmt.Errorf("Failed to extract 'destroy' key as boolean: %v", err)
+				}
+
+				if d == true {
+					summary.Destroyed++
+				} else if id == "" {
+					summary.Added++
+				} else {
+					summary.Changed++
+				}
+			} else if string(key) != "destroy" && string(key) != "destroy_tainted" {
+				// Nested module
+				err := summarizeTFPlan(value, summary)
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	summary.Added = create
-	summary.Changed = change
-	summary.Destroyed = destroy
-
-	return summary, nil
+		return nil
+	}, []string{}...)
 }
 
 func runTFJson(planfile string) (string, error) {
