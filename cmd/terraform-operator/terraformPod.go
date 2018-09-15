@@ -365,6 +365,20 @@ func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
 	return cm
 }
 
+func getBackendBucketandPrefix(parent *tftype.Terraform) (string, string) {
+	backendBucket := parent.Spec.BackendBucket
+	if backendBucket == "" {
+		// Create canonical bucket name.
+		backendBucket = fmt.Sprintf("%s-terraform-operator", config.Project)
+	}
+	backendPrefix := parent.Spec.BackendPrefix
+	if backendPrefix == "" {
+		// Create canonical prefix.
+		backendPrefix = "terraform"
+	}
+	return backendBucket, backendPrefix
+}
+
 func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {
 	return fmt.Sprintf("gs://%s/%s/%s.tfstate", backendBucket, backendPrefix, workspace)
 }

@@ -23,7 +23,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 			switch pod.Status.Phase {
 			case corev1.PodFailed:
 				setFinalPodStatus(parent, status, cStatus, pod)
-				status.PodStatus = PodStatusFailed
+				status.PodStatus = tftype.PodStatusFailed
 				myLog(parent, "ERROR", fmt.Sprintf("%s init container failed: %s", cStatus.Name, cStatus.State.Terminated.Message))
 
 				// Attempt retry
@@ -32,7 +32,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 				if status.RetryCount >= getPodMaxAttempts(parent) {
 					myLog(parent, "WARN", "Max retry attempts exceeded")
 
-					status.PodStatus = PodStatusFailed
+					status.PodStatus = tftype.PodStatusFailed
 
 					status.RetryCount = 0
 					status.RetryNextAt = ""
@@ -97,7 +97,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 					}
 				}
 
-				status.PodStatus = PodStatusPassed
+				status.PodStatus = tftype.PodStatusPassed
 				status.RetryCount = 0
 				status.RetryNextAt = ""
 
@@ -117,7 +117,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 				if status.RetryCount >= getPodMaxAttempts(parent) {
 					myLog(parent, "WARN", "Max retry attempts exceeded")
 
-					status.PodStatus = PodStatusFailed
+					status.PodStatus = tftype.PodStatusFailed
 
 					status.RetryCount = 0
 					status.RetryNextAt = ""
@@ -147,7 +147,7 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 				}
 
 				status.RetryNextAt = ""
-				status.PodStatus = PodStatusRunning
+				status.PodStatus = tftype.PodStatusRunning
 
 				myLog(parent, "INFO", fmt.Sprintf("Waiting for %s to complete.", pod.Name))
 			}

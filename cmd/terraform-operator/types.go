@@ -21,14 +21,6 @@ const (
 	DEFAULT_POD_MAX_ATTEMPTS = 4
 )
 
-// Pod status for reporting pass/fail status of pod
-const (
-	// PodStatusFailed indicates that the max attempts for retry have failed.
-	PodStatusFailed  = "FAILED"
-	PodStatusPassed  = "COMPLETED"
-	PodStatusRunning = "RUNNING"
-)
-
 const (
 	// StateNone is the inital state for a new spec.
 	StateNone = tftype.TerraformOperatorState("NONE")

@@ -95,6 +95,9 @@ func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.T
 	// Get the image and pull policy (or default) from the spec.
 	image, imagePullPolicy := getImageAndPullPolicy(parent)
 
+	// Get the backend bucket and backend prefix (or default) from the spec.
+	backendBucket, backendPrefix := getBackendBucketandPrefix(parent)
+
 	// Terraform Pod data
 	tfp := TFPod{
 		Image:              image,
@@ -104,8 +107,8 @@ func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.T
 		Workspace:          fmt.Sprintf("%s-%s", parent.Namespace, parent.Name),
 		SourceData:         sourceData,
 		ProviderConfigKeys: providerConfigKeys,
-		BackendBucket:      parent.Spec.BackendBucket,
-		BackendPrefix:      parent.Spec.BackendPrefix,
+		BackendBucket:      backendBucket,
+		BackendPrefix:      backendPrefix,
 		TFParent:           parent.Name,
 		TFPlan:             tfplanFile,
 		TFInputs:           tfInputVars,
@@ -144,7 +147,7 @@ func stateIdle(parentType ParentType, parent *tftype.Terraform, status *tftype.T
 	status.StartedAt = ""
 	status.FinishedAt = ""
 	status.Duration = ""
-	status.PodStatus = ""
+	status.PodStatus = tftype.PodStatusUnknown
 
 	myLog(parent, "INFO", fmt.Sprintf("Created Pod: %s", pod.Name))
 

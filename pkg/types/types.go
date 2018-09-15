@@ -77,7 +77,7 @@ type TerraformOperatorStatus struct {
 	Sources        TerraformOperatorStatusSources `json:"sources"`
 	StateCurrent   TerraformOperatorState         `json:"stateCurrent"`
 	PodName        string                         `json:"podName"`
-	PodStatus      string                         `json:"podStatus"`
+	PodStatus      PodStatus                      `json:"podStatus"`
 	StartedAt      string                         `json:"startedAt"`
 	FinishedAt     string                         `json:"finishedAt"`
 	Duration       string                         `json:"duration"`
@@ -122,3 +122,15 @@ type TerraformOutputVar struct {
 	Type      string `json:"type,omitempty"`
 	Value     string `json:"value,omitempty"`
 }
+
+// PodStatus is a const enum
+type PodStatus string
+
+// Pod status for reporting pass/fail status of pod
+const (
+	// PodStatusFailed indicates that the max attempts for retry have failed.
+	PodStatusFailed  PodStatus = "FAILED"
+	PodStatusPassed  PodStatus = "COMPLETED"
+	PodStatusRunning PodStatus = "RUNNING"
+	PodStatusUnknown PodStatus = "UNKNOWN"
+)

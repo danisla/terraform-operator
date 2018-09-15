@@ -20,7 +20,7 @@ func getTFPlanFile(parent *tftype.Terraform) (string, error) {
 			return tfplanFile, fmt.Errorf("Waiting for TerraformPlan/%s", parent.Spec.TFPlan)
 		}
 
-		if tfplan.Status.PodStatus != PodStatusPassed || tfplan.Status.TFPlan == "" {
+		if tfplan.Status.PodStatus != tftype.PodStatusPassed || tfplan.Status.TFPlan == "" {
 			return tfplanFile, fmt.Errorf("Waiting for TerraformPlan/%s TFPlan", tfplan.Name)
 		}
 
