@@ -78,6 +78,10 @@ func makeStatus(parent *tftype.Terraform, children *TerraformOperatorRequestChil
 		status.TFOutput = parent.Status.TFOutput
 	}
 
+	if parent.Status.TFOutputSecret != "" && changed == false {
+		status.TFOutputSecret = parent.Status.TFOutputSecret
+	}
+
 	if parent.Status.TFPlanDiff != nil && changed == false {
 		status.TFPlanDiff = parent.Status.TFPlanDiff
 	}

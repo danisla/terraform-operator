@@ -226,7 +226,7 @@
   ]
   pruneopts = "UT"
   revision = "73d903622b7391f3312dcbac6483fed484e185f8"
-  version = "kubernetes-1.10.1"
+  version = "kubernetes-1.10.0"
 
 [[projects]]
   digest = "1:5306fa4e911383bc8540148123e6a81aea1786dbf592ac051fd572fdd8a173b1"
@@ -270,10 +270,10 @@
   ]
   pruneopts = "UT"
   revision = "302974c03f7e50f16561ba237db776ab93594ef6"
-  version = "kubernetes-1.10.1"
+  version = "kubernetes-1.10.0"
 
 [[projects]]
-  digest = "1:ee09b03e21c94c86f3428376b8e5d2154f384f1260399ed11115c9cd049634c1"
+  digest = "1:668e3c4436108728b89f3c349a7932ffc2c3436c23e202f99924479889e01fa5"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -322,8 +322,8 @@
     "util/integer",
   ]
   pruneopts = "UT"
-  revision = "989be4278f353e42f26c416c53757d16fcff77db"
-  version = "kubernetes-1.10.1"
+  revision = "23781f4d6632d88e869066eaebb743857aa1ef9b"
+  version = "kubernetes-1.10.0"
 
 [solve-meta]
   analyzer-name = "dep"

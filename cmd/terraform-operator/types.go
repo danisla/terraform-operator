@@ -71,6 +71,7 @@ type SyncResponse struct {
 type TerraformOperatorRequestChildren struct {
 	Pods       map[string]corev1.Pod       `json:"Pod.v1"`
 	ConfigMaps map[string]corev1.ConfigMap `json:"ConfigMap.v1"`
+	Secrets    map[string]corev1.Secret    `json:"Secret.v1"`
 }
 
 // TerraformInputVars is a map of output var names from TerraformApply Objects.

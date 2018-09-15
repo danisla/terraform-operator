@@ -39,6 +39,11 @@ func sync(parentType ParentType, parent *tftype.Terraform, children *TerraformOp
 		desiredChildren = append(desiredChildren, o)
 	}
 
+	// Claim the Secrets.
+	for _, o := range children.Secrets {
+		desiredChildren = append(desiredChildren, o)
+	}
+
 	// Advance the state
 	if status.StateCurrent != nextState {
 		myLog(parent, "INFO", fmt.Sprintf("State %s -> %s", status.StateCurrent, nextState))

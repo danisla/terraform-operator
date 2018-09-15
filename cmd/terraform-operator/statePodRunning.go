@@ -7,6 +7,7 @@ import (
 
 	tftype "github.com/danisla/terraform-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, children *TerraformOperatorRequestChildren, desiredChildren *[]interface{}) (tftype.TerraformOperatorState, error) {
@@ -92,6 +93,16 @@ func statePodRunning(parentType ParentType, parent *tftype.Terraform, status *tf
 
 						myLog(parent, "INFO", fmt.Sprintf("Extracted %d output variables.", len(outputVars)))
 
+						// Create Secret with output var map
+						secretName := fmt.Sprintf("%s-tfapply-outputs", parent.GetName())
+						secret := makeOutputVarsSecret(secretName, parent.GetNamespace(), outputVars)
+
+						myLog(parent, "INFO", fmt.Sprintf("Created output var secret: %s", secret.GetName()))
+
+						status.TFOutputSecret = secret.GetName()
+
+						*desiredChildren = append(*desiredChildren, secret)
+
 					} else {
 						myLog(parent, "ERROR", fmt.Sprintf("terraform-plan annotation not found on successful pod completion: %s", pod.Name))
 					}
@@ -172,6 +183,30 @@ func makeOutputVars(data string) (map[string]tftype.TerraformOutputVar, error) {
 	var outputVars map[string]tftype.TerraformOutputVar
 	err := json.Unmarshal([]byte(data), &outputVars)
 	return outputVars, err
+}
+
+func makeOutputVarsSecret(name string, namespace string, vars map[string]tftype.TerraformOutputVar) corev1.Secret {
+	var secret corev1.Secret
+
+	data := make(map[string]string, 0)
+
+	for k, v := range vars {
+		data[k] = v.Value
+	}
+
+	secret = corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: data,
+	}
+
+	return secret
 }
 
 func setFinalPodStatus(parent *tftype.Terraform, status *tftype.TerraformOperatorStatus, cStatus corev1.ContainerStatus, pod corev1.Pod) {
