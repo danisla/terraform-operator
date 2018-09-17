@@ -3,7 +3,7 @@ TAG = latest
 all: image
 
 image:
-	gcloud builds submit --config cloudbuild.yaml --project cloud-solutions-group --substitutions=TAG_NAME=$(TAG)
+	gcloud builds submit --config cloudbuild.yaml --project cloud-solutions-group --substitutions=TAG_NAME=$(TAG) --machine-type=n1-highcpu-32
 
 install-metacontroller:
 	-kubectl create clusterrolebinding $(USER)-cluster-admin-binding --clusterrole=cluster-admin --user=$(shell gcloud config get-value account)
