@@ -2,6 +2,8 @@ package test
 
 import (
 	"bytes"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -12,7 +14,28 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
+
+type tfSpecData struct {
+	Kind                     string
+	Name                     string
+	Image                    string
+	ConfigMapSources         []string
+	BackendBucket            string
+	BucketPrefix             string
+	GoogleProviderSecretName string
+	TFVarsMap                map[string]string
+}
+
+type Terraform struct {
+	Status TerraformStatus `json:"status"`
+}
+
+type TerraformStatus struct {
+	PodName   string `json:"podName"`
+	PodStatus string `json:"podStatus"`
+}
 
 const (
 	defaultImage                = "gcr.io/cloud-solutions-group/terraform-pod:latest"
@@ -21,6 +44,17 @@ const (
 	defaultTFSpecFile           = "tfspec.tpl.yaml"
 	defaultTFSourcePath         = "testdata/tfsource.tf"
 )
+
+var namespace string
+var deleteSpec bool
+var timeout int
+
+func init() {
+	flag.StringVar(&namespace, "namespace", "default", "namespace to deploy to.")
+	flag.BoolVar(&deleteSpec, "delete", true, "wether to delete the applied test specs.")
+	flag.IntVar(&timeout, "timeout", 10, "timeout in minutes to wait for any Terraform operation")
+	flag.Parse()
+}
 
 // assert fails the test if the condition is false.
 func assert(tb testing.TB, condition bool, msg string, v ...interface{}) {
@@ -56,17 +90,6 @@ func helperLoadBytes(t *testing.T, name string) []byte {
 		t.Fatal(err)
 	}
 	return bytes
-}
-
-type tfSpecData struct {
-	Kind                     string
-	Name                     string
-	Image                    string
-	ConfigMapSources         []string
-	BackendBucket            string
-	BucketPrefix             string
-	GoogleProviderSecretName string
-	TFVarsMap                map[string]string
 }
 
 func testMakeTF(t *testing.T, data tfSpecData) string {
@@ -108,7 +131,7 @@ func defaultBackendBucket() (string, error) {
 	if projectID == "" {
 		return "", fmt.Errorf("No GOOGLE_PROJECT found in env")
 	}
-	return fmt.Sprintf("gs://%s-terraform-operator", projectID), nil
+	return fmt.Sprintf("%s-terraform-operator", projectID), nil
 }
 
 func getTFSource() (string, error) {
@@ -119,22 +142,68 @@ func getTFSource() (string, error) {
 	return string(data), nil
 }
 
-func testRunCmd(t *testing.T, cmdStr string) {
-	var stderr bytes.Buffer
+func testRunCmd(t *testing.T, cmdStr string, stdin string) string {
+	var stderr, stdout bytes.Buffer
 	cmd := exec.Command("bash", "-c", cmdStr)
 	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+	if stdin != "" {
+		cmd.Stdin = bytes.NewBufferString(stdin)
+	}
 	err := cmd.Run()
 	if err != nil {
 		t.Fatalf("Failed to run kubectl: %s\n%v", stderr.String(), err)
 	}
+	return stdout.String()
 }
 
 func testApplyTFSourceConfigMap(t *testing.T, namespace, name string) {
 	cmdStr := fmt.Sprintf("kubectl -n %s create --save-config=true configmap %s --from-file=main.tf=%s --dry-run -o yaml | kubectl apply -f -", namespace, name, defaultTFSourcePath)
-	testRunCmd(t, cmdStr)
+	testRunCmd(t, cmdStr, "")
+}
+
+func testApply(t *testing.T, namespace, manifest string) {
+	cmdStr := fmt.Sprintf("kubectl -n %s apply -f -", namespace)
+	testRunCmd(t, cmdStr, manifest)
+}
+
+func testDelete(t *testing.T, namespace, manifest string) {
+	if !deleteSpec {
+		t.Log("Skipping deletion of manifest per flag")
+	} else {
+		cmdStr := fmt.Sprintf("kubectl -n %s delete -f -", namespace)
+		testRunCmd(t, cmdStr, manifest)
+	}
 }
 
 func testDeleteTFSourceConfigMap(t *testing.T, namespace, name string) {
-	cmdStr := fmt.Sprintf("kubectl -n %s delete configmap %s", namespace, name)
-	testRunCmd(t, cmdStr)
+	if !deleteSpec {
+		t.Logf("Skipping deletion of ConfigMap/%s per flag", name)
+	} else {
+		cmdStr := fmt.Sprintf("kubectl -n %s delete configmap %s", namespace, name)
+		testRunCmd(t, cmdStr, "")
+	}
+}
+
+func testGetTF(t *testing.T, kind, namespace, name string) Terraform {
+	tfJSON := testRunCmd(t, fmt.Sprintf("kubectl -n %s get %s %s -o json", namespace, kind, name), "")
+	var tf Terraform
+	if err := json.Unmarshal([]byte(tfJSON), &tf); err != nil {
+		t.Fatalf("Failed to parse kubectl json output: %v", err)
+	}
+	return tf
+}
+
+func testWaitTF(t *testing.T, kind, namespace, name string) {
+	maxTime := time.Now().Add(time.Minute * time.Duration(timeout))
+	for time.Now().Before(maxTime) {
+		tf := testGetTF(t, kind, namespace, name)
+		if tf.Status.PodStatus == "COMPLETED" {
+			t.Logf("%s/%s pod: %s,%s", kind, name, tf.Status.PodName, tf.Status.PodStatus)
+			break
+		} else {
+			fmt.Printf("Waiting for %s/%s pod: %s,%s\n", kind, name, tf.Status.PodName, tf.Status.PodStatus)
+			time.Sleep(time.Second * time.Duration(5))
+		}
+	}
 }

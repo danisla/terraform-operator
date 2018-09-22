@@ -14,9 +14,9 @@ spec:
   {{- range .ConfigMapSources }}
   - configMap:
       name: {{ . }}
-	  trigger: true
+    trigger: true
   {{- end }}
   tfvars:
   {{- range $k, $v := .TFVarsMap }}
-	$k: $v
+  $k: $v
   {{- end }}
