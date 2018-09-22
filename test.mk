@@ -1,8 +1,8 @@
 SHELL := /bin/bash
 
-ALL_TESTS := TestConfigMapSource
+ALL_TESTS := Test.*
 
-GOTEST_ARGS := -test.v
+GOTEST_ARGS := -v -parallel 8 -cpu 8
 DELETE_ARG := -delete=true
 
 test: $(ALL_TESTS)

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -14,18 +13,24 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
+
+	"github.com/Masterminds/sprig"
 )
 
 type tfSpecData struct {
-	Kind                     string
+	Kind                     TFKind
 	Name                     string
 	Image                    string
 	ConfigMapSources         []string
+	EmbeddedSources          []string
+	TFSources                []map[string]string
 	BackendBucket            string
 	BucketPrefix             string
 	GoogleProviderSecretName string
 	TFVarsMap                map[string]string
+	TFPlan                   string
 }
 
 type Terraform struct {
@@ -43,6 +48,14 @@ const (
 	defaultBucketPrefix         = "terraform"
 	defaultTFSpecFile           = "tfspec.tpl.yaml"
 	defaultTFSourcePath         = "testdata/tfsource.tf"
+)
+
+type TFKind string
+
+const (
+	TFKindPlan    TFKind = "TerraformPlan"
+	TFKindApply   TFKind = "TerraformApply"
+	TFKindDestroy TFKind = "TerraformDestroy"
 )
 
 var namespace string
@@ -93,9 +106,8 @@ func helperLoadBytes(t *testing.T, name string) []byte {
 }
 
 func testMakeTF(t *testing.T, data tfSpecData) string {
-
 	templateSpec := helperLoadBytes(t, defaultTFSpecFile)
-	tmpl, err := template.New("tf.yaml").Funcs(template.FuncMap{"StringsJoin": strings.Join}).Parse(string(templateSpec))
+	tmpl, err := template.New("tf.yaml").Funcs(template.FuncMap{"StringsJoin": strings.Join}).Funcs(sprig.TxtFuncMap()).Parse(string(templateSpec))
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -185,7 +197,7 @@ func testDeleteTFSourceConfigMap(t *testing.T, namespace, name string) {
 	}
 }
 
-func testGetTF(t *testing.T, kind, namespace, name string) Terraform {
+func testGetTF(t *testing.T, kind TFKind, namespace, name string) Terraform {
 	tfJSON := testRunCmd(t, fmt.Sprintf("kubectl -n %s get %s %s -o json", namespace, kind, name), "")
 	var tf Terraform
 	if err := json.Unmarshal([]byte(tfJSON), &tf); err != nil {
@@ -194,15 +206,15 @@ func testGetTF(t *testing.T, kind, namespace, name string) Terraform {
 	return tf
 }
 
-func testWaitTF(t *testing.T, kind, namespace, name string) {
+func testWaitTF(t *testing.T, kind TFKind, namespace, name string) {
 	maxTime := time.Now().Add(time.Minute * time.Duration(timeout))
 	for time.Now().Before(maxTime) {
 		tf := testGetTF(t, kind, namespace, name)
 		if tf.Status.PodStatus == "COMPLETED" {
-			t.Logf("%s/%s pod: %s,%s", kind, name, tf.Status.PodName, tf.Status.PodStatus)
+			fmt.Printf("%s/%s pod: %s %s\n", kind, name, tf.Status.PodName, tf.Status.PodStatus)
 			break
 		} else {
-			fmt.Printf("Waiting for %s/%s pod: %s,%s\n", kind, name, tf.Status.PodName, tf.Status.PodStatus)
+			fmt.Printf("Waiting for %s/%s pod: %s %s\n", kind, name, tf.Status.PodName, tf.Status.PodStatus)
 			time.Sleep(time.Second * time.Duration(5))
 		}
 	}

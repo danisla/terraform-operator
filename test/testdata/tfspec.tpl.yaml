@@ -16,7 +16,21 @@ spec:
       name: {{ . }}
     trigger: true
   {{- end }}
+{{- range .EmbeddedSources }}
+  - embedded: |-
+{{ . | indent 6 }}
+  {{- end }}
+  {{- range .TFSources }}
+  {{- range $k, $v := .}} 
+  - {{ $k }}: {{ $v }}
+  {{- end }}
+  {{- end }}
+  {{- if .TFPlan }}
+  tfplan: {{ .TFPlan }}
+  {{- end }}
+  {{- if .TFVarsMap }}
   tfvars:
-  {{- range $k, $v := .TFVarsMap }}
-  $k: $v
+  {{- range $k, $v := .TFVarsMap}}
+    {{ $k }}: {{ $v }}
+  {{- end}}
   {{- end }}
