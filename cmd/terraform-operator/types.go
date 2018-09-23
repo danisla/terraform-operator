@@ -9,22 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Default image used for terraform pod, can be overridden using spec.Image and spec.ImagePullPolicy
-const (
-	DEFAULT_IMAGE             = "gcr.io/cloud-solutions-group/terraform-pod:latest"
-	DEFAULT_IMAGE_PULL_POLICY = corev1.PullIfNotPresent
-)
-
-// ServiceAccount installed with Controller deployment
-const (
-	DEFAULT_POD_SERVICE_ACCOUNT = "terraform"
-)
-
-// Default max retries for failed pods
-const (
-	DEFAULT_POD_MAX_ATTEMPTS = 4
-)
-
 const (
 	// StateNone is the inital state for a new spec.
 	StateNone = tftype.TerraformOperatorState("NONE")
@@ -125,7 +109,7 @@ type ConfigMapSourceData map[string]string
 
 // Validate verifies that there is at least 1 key in the configmap.
 func (c *ConfigMapSourceData) Validate() error {
-	if len(c) == 0 {
+	if c != nil && len(*c) == 0 {
 		return fmt.Errorf("no data found in ConfigMap")
 	}
 	return nil

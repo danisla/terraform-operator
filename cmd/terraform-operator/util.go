@@ -92,7 +92,7 @@ func getTerraform(kind tfv1.TFKind, namespace string, name string) (tfv1.Terrafo
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	cmd := exec.Command("kubectl", "get", kind, "-n", namespace, name, "-o", "yaml")
+	cmd := exec.Command("kubectl", "get", string(kind), "-n", namespace, name, "-o", "yaml")
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
@@ -134,10 +134,14 @@ func getVarsFromTF(kind tfv1.TFKind, namespace, name string) (TerraformInputVars
 	if err != nil {
 		return tfVars, err
 	}
-	if len(tf.Spec.TFVars) > 0 {
-		for k, v := range tf.Spec.TFVars {
-			tfVars[k] = v
-		}
+	if tf.Spec == nil || tf.Spec.TFVars == nil {
+		// Either terraform object is a SpecFrom or it has no TFVars
+		return tfVars, nil
 	}
+
+	for _, v := range *tf.Spec.TFVars {
+		tfVars[v.Name] = v.Value
+	}
+
 	return tfVars, nil
 }

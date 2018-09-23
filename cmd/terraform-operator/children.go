@@ -65,7 +65,7 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 			Labels: labels,
 		},
 		Spec: corev1.PodSpec{
-			ServiceAccountName: DEFAULT_POD_SERVICE_ACCOUNT,
+			ServiceAccountName: tfDriverConfig.PodServiceAccount,
 
 			// Treating this pod like a job, so no restarts.
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -316,13 +316,13 @@ func getImageAndPullPolicy(parent *tftype.Terraform) (string, corev1.PullPolicy)
 	if parent.Spec.Image != "" {
 		image = parent.Spec.Image
 	} else {
-		image = DEFAULT_IMAGE
+		image = tfDriverConfig.Image
 	}
 
 	if parent.Spec.ImagePullPolicy != "" {
 		pullPolicy = corev1.PullPolicy(parent.Spec.ImagePullPolicy)
 	} else {
-		pullPolicy = DEFAULT_IMAGE_PULL_POLICY
+		pullPolicy = tfDriverConfig.ImagePullPolicy
 	}
 
 	return image, pullPolicy
@@ -368,17 +368,41 @@ func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
 func getBackendBucketandPrefix(parent *tftype.Terraform) (string, string) {
 	backendBucket := parent.Spec.BackendBucket
 	if backendBucket == "" {
-		// Create canonical bucket name.
-		backendBucket = fmt.Sprintf("%s-terraform-operator", config.Project)
+		// Use default from config.
+		backendBucket = tfDriverConfig.BackendBucket
 	}
 	backendPrefix := parent.Spec.BackendPrefix
 	if backendPrefix == "" {
 		// Create canonical prefix.
-		backendPrefix = "terraform"
+		backendPrefix = tfDriverConfig.BackendPrefix
 	}
 	return backendBucket, backendPrefix
 }
 
 func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {
 	return fmt.Sprintf("gs://%s/%s/%s.tfstate", backendBucket, backendPrefix, workspace)
+}
+
+func makeOutputVarsSecret(name string, namespace string, vars *[]tftype.TerraformOutputVar) corev1.Secret {
+	var secret corev1.Secret
+
+	data := make(map[string]string, 0)
+
+	for _, v := range *vars {
+		data[v.Name] = v.Value
+	}
+
+	secret = corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: data,
+	}
+
+	return secret
 }

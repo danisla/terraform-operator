@@ -7,6 +7,7 @@ import (
 
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 	"github.com/jinzhu/copier"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChildren) (*tfv1.TerraformOperatorStatus, *[]interface{}, error) {
@@ -38,7 +39,7 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 	conditionOrder := parent.GetConditionOrder()
 
 	// Variables shared by multiple conditions
-	var spec tfv1.TerraformSpec
+	var spec *tfv1.TerraformSpec
 	var providerConfigKeys ProviderConfigKeys
 	var sourceData TerraformConfigSourceData
 	var tfInputVars TerraformInputVars
@@ -65,7 +66,7 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 		case tfv1.ConditionTypeTerraformSpecFromReady:
 			newStatus, spec = reconcileSpecFromReady(condition, parent, &status, children, &desiredChildren)
 			if spec != nil {
-				*parent.Spec = &spec
+				parent.Spec = spec
 			}
 
 		case tfv1.ConditionTypeTerraformProviderConfigReady:
@@ -80,11 +81,11 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 		case tfv1.ConditionTypeTerraformVarsFromReady:
 			newStatus, tfVarsFrom = reconcileTFVarsFromReady(condition, parent, &status, children, &desiredChildren)
 
-		case ConditionTypeTerraformPlanReady:
+		case tfv1.ConditionTypeTerraformPlanReady:
 			newStatus, tfplanfile = reconcileTFPlanReady(condition, parent, &status, children, &desiredChildren)
 
-		case ConditionTypeTerraformPodComplete:
-			newStatus = reconcileTFPodReady(condition, parent, &status, children, &desiredChildren, &providerConfigKeys, &sourceData, &tfInputVars, tfVarsFrom, tfplanfile)
+		case tfv1.ConditionTypeTerraformPodComplete:
+			newStatus = reconcileTFPodReady(condition, parent, &status, children, &desiredChildren, &providerConfigKeys, &sourceData, &tfInputVars, &tfVarsFrom, tfplanfile)
 
 		case tfv1.ConditionTypeTerraformReady:
 			newStatus = tfv1.ConditionTrue

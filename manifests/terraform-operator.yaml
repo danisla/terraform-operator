@@ -142,7 +142,11 @@ spec:
         image: gcr.io/cloud-solutions-group/terraform-operator:0.3.7
         imagePullPolicy: Always
         command: ["/usr/bin/terraform-operator"]
-        # env:
+        env:
+        - name: TF_IMAGE
+          value: gcr.io/cloud-solutions-group/terraform-pod:v0.11.8
+        - name: TF_IMAGE_PULL_POLICY
+          value: Always
         # - name: HTTP_DEBUG
         #   value: "true"
 ---
