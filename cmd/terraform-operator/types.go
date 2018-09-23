@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	tftype "github.com/danisla/terraform-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -57,8 +61,8 @@ const (
 
 // SyncRequest describes the payload from the CompositeController hook
 type SyncRequest struct {
-	Parent   tftype.Terraform                 `json:"parent"`
-	Children TerraformOperatorRequestChildren `json:"children"`
+	Parent   tftype.Terraform  `json:"parent"`
+	Children TerraformChildren `json:"children"`
 }
 
 // SyncResponse is the CompositeController response structure.
@@ -67,12 +71,37 @@ type SyncResponse struct {
 	Children []interface{}                  `json:"children"`
 }
 
-// TerraformOperatorRequestChildren is the children definition passed by the CompositeController request for the Terraform controller.
-type TerraformOperatorRequestChildren struct {
+// TerraformChildren is the children definition passed by the CompositeController request for the Terraform controller.
+type TerraformChildren struct {
 	Pods       map[string]corev1.Pod       `json:"Pod.v1"`
 	ConfigMaps map[string]corev1.ConfigMap `json:"ConfigMap.v1"`
 	Secrets    map[string]corev1.Secret    `json:"Secret.v1"`
 }
+
+func (children *TerraformChildren) claimChildAndGetCurrent(newChild interface{}, desiredChildren *[]interface{}) interface{} {
+	var currChild interface{}
+	switch o := newChild.(type) {
+	case corev1.Pod:
+		if child, ok := children.Pods[o.GetName()]; ok == true {
+			currChild = child
+		}
+	case corev1.ConfigMap:
+		if child, ok := children.ConfigMaps[o.GetName()]; ok == true {
+			currChild = child
+		}
+	case corev1.Secret:
+		if child, ok := children.Secrets[o.GetName()]; ok == true {
+			currChild = child
+		}
+	}
+
+	*desiredChildren = append(*desiredChildren, newChild)
+
+	return currChild
+}
+
+// ProviderConfigKeys is a map of secret names to a list of keys in the secret.
+type ProviderConfigKeys map[string][]string
 
 // TerraformInputVars is a map of output var names from TerraformApply Objects.
 type TerraformInputVars map[string]string
@@ -85,8 +114,31 @@ type TerraformSpecCredentials struct {
 
 // TerraformConfigSourceData is the structure of all of the extracted config sources used by the Terraform Pod.
 type TerraformConfigSourceData struct {
-	ConfigMapHashes    *tftype.ConfigMapHashes
+	ConfigMapHashes    *map[string]tftype.ConfigMapHash
 	ConfigMapKeys      *tftype.ConfigMapKeys
 	GCSObjects         *tftype.GCSObjects
 	EmbeddedConfigMaps *tftype.EmbeddedConfigMaps
+}
+
+// ConfigMapSourceData is an internal structure for mapping config map keys to strings and performing validation and hashing.
+type ConfigMapSourceData map[string]string
+
+// Validate verifies that there is at least 1 key in the configmap.
+func (c *ConfigMapSourceData) Validate() error {
+	if len(c) == 0 {
+		return fmt.Errorf("no data found in ConfigMap")
+	}
+	return nil
+}
+
+// GetHash returns a hash of the config map source data.
+func (c *ConfigMapSourceData) GetHash() string {
+	// Create a stable hash from the map[string]string using a stringified (name, hash) sorted tuple.
+	tuples := make([]string, 0)
+	for k, v := range *c {
+		tuples = append(tuples, strings.Join([]string{k, toSha1(v)}, ","))
+	}
+	sort.Strings(tuples)
+	// return the hash of the sorted tuples.
+	return toSha1(strings.Join(tuples, ","))
 }

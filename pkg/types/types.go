@@ -11,6 +11,38 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// TFKind is an enum on the different kind of resources.
+type TFKind string
+
+const (
+	TFKindPlan    TFKind = "TerraformPlan"
+	TFKindApply   TFKind = "TerraformApply"
+	TFKindDestroy TFKind = "TerraformDestroy"
+)
+
+// TFKindShort is the abbreviated name of the resource, defined in the CRD
+type TFKindShort string
+
+const (
+	TFKindShortPlan    TFKindShort = "tfplan"
+	TFKindShortApply   TFKindShort = "tfapply"
+	TFKindShortDestroy TFKindShort = "tfdestroy"
+)
+
+// GetShort translates a long kind to a short kind.
+func (k *TFKind) GetShort() TFKindShort {
+	var s TFKindShort
+	switch *k {
+	case TFKindPlan:
+		s = TFKindShortPlan
+	case TFKindApply:
+		s = TFKindShortApply
+	case TFKindDestroy:
+		s = TFKindShortDestroy
+	}
+	return s
+}
+
 // TerraformOperatorState represents the string mapping of the possible controller states. See the const definition below for enumerated states.
 type TerraformOperatorState string
 
@@ -23,6 +55,17 @@ type Terraform struct {
 	Status            TerraformOperatorStatus `json:"status"`
 }
 
+// GetTFKind converts the object type to a TFKind
+func (parent *Terraform) GetTFKind() TFKind {
+	return TFKind(parent.Kind)
+}
+
+// GetTFKindShort converts the object type to a TFKindShort
+func (parent *Terraform) GetTFKindShort() TFKindShort {
+	k := TFKind(parent.Kind)
+	return k.GetShort()
+}
+
 // Verify checks the top level required fields.
 func (parent *Terraform) Verify() error {
 	if parent.Spec == nil && parent.SpecFrom == nil {
@@ -31,6 +74,29 @@ func (parent *Terraform) Verify() error {
 
 	if parent.Spec != nil {
 		return parent.Spec.Verify()
+	}
+
+	// Verify no cycles in TF sources
+	for _, s := range *parent.Spec.Sources {
+		if s.TFApply != "" {
+			if s.TFApply == parent.GetName() && parent.GetTFKind() == TFKindApply {
+				return fmt.Errorf("source.tfapply %s/%s: CYCLE", parent.GetTFKind(), s.TFApply)
+			}
+		}
+		if s.TFPlan != "" {
+			if s.TFPlan == parent.GetName() && parent.GetTFKind() == TFKindPlan {
+				return fmt.Errorf("source.tfplan %s/%s: CYCLE", parent.GetTFKind(), s.TFPlan)
+			}
+		}
+	}
+
+	// Verify vars were given for TFInputs
+	if parent.Spec.TFInputs != nil {
+		for _, tfinput := range *parent.Spec.TFInputs {
+			if len(tfinput.VarMap) == 0 {
+				return fmt.Errorf("source.tfinputs.varMap is empty")
+			}
+		}
 	}
 
 	return nil
@@ -89,11 +155,53 @@ func (parent *Terraform) MakeConditions(initTime metav1.Time) TerraformCondition
 // This is dependent on which fields are provided in the parent spec.
 func (parent *Terraform) GetConditionOrder() []TerraformConditionType {
 	desiredOrder := []TerraformConditionType{
+		ConditionTypeTerraformSpecFromReady,
+		ConditionTypeTerraformProviderConfigReady,
+		ConditionTypeTerraformConfigSourceReady,
+		ConditionTypeTerraformInputsReady,
+		ConditionTypeTerraformVarsFromReady,
+		ConditionTypeTerraformPlanReady,
+		ConditionTypeTerraformPodComplete,
 		ConditionTypeTerraformReady,
 	}
 
 	conditionOrder := make([]TerraformConditionType, 0)
 	for _, c := range desiredOrder {
+		if c == ConditionTypeTerraformSpecFromReady && parent.SpecFrom == nil {
+			continue
+		}
+
+		if parent.Spec != nil {
+			// Config source conditional on spec for config.
+			if c == ConditionTypeTerraformConfigSourceReady {
+				found := false
+				for _, s := range *parent.Spec.Sources {
+					if s.ConfigMap != nil || s.TFApply != "" || s.TFPlan != "" {
+						found = true
+						break
+					}
+				}
+				if found {
+					continue
+				}
+			}
+
+			// Inputs conditional on spec for inputs.
+			if c == ConditionTypeTerraformInputsReady && (*parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
+				continue
+			}
+
+			// VarsFrom conditional on spec for vars from.
+			if c == ConditionTypeTerraformVarsFromReady && (*parent.Spec.TFVarsFrom != nil || len(*parent.Spec.TFVarsFrom) == 0) {
+				continue
+			}
+
+			// TFPlan conditional on spec for tfplan.
+			if c == ConditionTypeTerraformPlanReady && parent.Spec.TFPlan == "" {
+				continue
+			}
+		}
+
 		conditionOrder = append(conditionOrder, c)
 	}
 	return conditionOrder
@@ -148,18 +256,36 @@ type TerraformConditionType string
 // exist in the status.conditions list. This gives visibility to what the operator is doing.
 // Some conditions can be satisfied in parallel with others.
 const (
-	// ConditionTypeTerraformReady is True when all prior conditions are ready
+	// ConditionTypeTerraformSpecFromReady is True when the given specFrom terraform resource is ready.
+	ConditionTypeTerraformSpecFromReady TerraformConditionType = "SpecFromReady"
+	// ConditionTypeTerraformProviderConfigReady is True when the provider config is available and ready.
+	ConditionTypeTerraformProviderConfigReady TerraformConditionType = "ProviderConfigReady"
+	// ConditionTypeTerraformConfigSourceReady is True when all config sources are ready.
+	ConditionTypeTerraformConfigSourceReady TerraformConditionType = "ConfigSourceReady"
+	// ConditionTypeTerraformInputsReady is True when all var inputs are ready.
+	ConditionTypeTerraformInputsReady TerraformConditionType = "TFInputsReady"
+	// ConditionTypeTerraformVarsFromReady is True when all vars from sources are ready.
+	ConditionTypeTerraformVarsFromReady TerraformConditionType = "TFVarsFromReady"
+	// ConditionTypeTerraformPlanReady is True when a given tfplan source file path is ready.
+	ConditionTypeTerraformPlanReady TerraformConditionType = "TFPlanReady"
+	// ConditionTypeTerraformPodComplete is True when the terraform pod has completed successfully.
+	ConditionTypeTerraformPodComplete TerraformConditionType = "TFPodComplete"
+	// ConditionTypeTerraformReady is True when all prior conditions are ready.
 	ConditionTypeTerraformReady TerraformConditionType = "Ready"
 )
 
 // GetDependencies returns a map of condition type names to an ordered slice of dependent condition types.
 func (conditionType *TerraformConditionType) GetDependencies() []TerraformConditionType {
-	// switch *conditionType {
-	// case ConditionTypeTerraformCloudSQLProxyReady:
-	// 	return []TerraformConditionType{
-	// 		ConditionTypeTerraformTFApplyComplete,
-	// 	}
-	// }
+	switch *conditionType {
+	case ConditionTypeTerraformPodComplete:
+		return []TerraformConditionType{
+			ConditionTypeTerraformProviderConfigReady,
+			ConditionTypeTerraformConfigSourceReady,
+			ConditionTypeTerraformInputsReady,
+			ConditionTypeTerraformVarsFromReady,
+			ConditionTypeTerraformPlanReady,
+		}
+	}
 	return []TerraformConditionType{}
 }
 
@@ -208,7 +334,7 @@ func (spec *TerraformSpec) Verify() error {
 		return fmt.Errorf("Missing 'spec.providerConfig'")
 	}
 
-	if spec.Sources == nil {
+	if spec.Sources == nil || len(*spec.Sources) == 0 {
 		return fmt.Errorf("Missing 'spec.sources'")
 	}
 
@@ -262,7 +388,7 @@ type VarMapItem struct {
 
 // TerraformOperatorStatusSources describes the status.sources structure.
 type TerraformOperatorStatusSources struct {
-	ConfigMapHashes    ConfigMapHashes    `json:"configMapHashes"`
+	ConfigMapHashes    []ConfigMapHash    `json:"configMapHashes"`
 	EmbeddedConfigMaps EmbeddedConfigMaps `json:"embeddedConfigMaps"`
 }
 
@@ -280,8 +406,8 @@ type ConfigMapKeys [][]string
 // GCSObjects is a list of GCS URLs containing terraform source bundles.
 type GCSObjects []string
 
-// ConfigMapHashes is a map of configmap names to a hash of the data spec.
-type ConfigMapHashes struct {
+// ConfigMapHash is an element holding the configmap source name and a hash of the data spec.
+type ConfigMapHash struct {
 	Name string `json:"name,omitempty"`
 	Hash string `json:"hash,omitempty"`
 }

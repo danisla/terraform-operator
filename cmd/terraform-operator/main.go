@@ -8,7 +8,7 @@ import (
 	"net/http/httputil"
 	"os"
 
-	tftype "github.com/danisla/terraform-operator/pkg/types"
+	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 )
 
 var (
@@ -44,7 +44,7 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var req SyncRequest
-		var desiredStatus *tftype.TerraformOperatorStatus
+		var desiredStatus *tfv1.TerraformOperatorStatus
 		var desiredChildren *[]interface{}
 		var parentType ParentType
 
@@ -67,12 +67,12 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		switch req.Parent.Kind {
-		case "TerraformPlan":
+		switch tfv1.TFKind(req.Parent.Kind) {
+		case tfv1.TFKindPlan:
 			parentType = ParentPlan
-		case "TerraformApply":
+		case tfv1.TFKindApply:
 			parentType = ParentApply
-		case "TerraformDestroy":
+		case tfv1.TFKindDestroy:
 			parentType = ParentDestroy
 		}
 		desiredStatus, desiredChildren, err = sync(parentType, &req.Parent, &req.Children)

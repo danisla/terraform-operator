@@ -34,14 +34,14 @@ type TFPod struct {
 	ProjectID          string
 	Workspace          string
 	SourceData         TerraformConfigSourceData
-	ProviderConfigKeys map[string][]string
+	ProviderConfigKeys ProviderConfigKeys
 	BackendBucket      string
 	BackendPrefix      string
 	TFParent           string
 	TFPlan             string
-	TFInputs           map[string]string
-	TFVars             map[string]string
-	TFVarsFrom         map[string]string
+	TFInputs           TerraformInputVars
+	TFVarsFrom         TerraformInputVars
+	TFVars             TerraformInputVars
 }
 
 func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, error) {
@@ -328,7 +328,7 @@ func getImageAndPullPolicy(parent *tftype.Terraform) (string, corev1.PullPolicy)
 	return image, pullPolicy
 }
 
-func makeOrdinalPodName(parentType ParentType, parent *tftype.Terraform, children *TerraformOperatorRequestChildren) string {
+func makeOrdinalPodName(parent *tftype.Terraform, children *TerraformChildren) string {
 	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
 	var validName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?-([0-9]+)$`)
 
@@ -341,11 +341,11 @@ func makeOrdinalPodName(parentType ParentType, parent *tftype.Terraform, childre
 				i = num
 			}
 		} else {
-			myLog(parent, "WARN", fmt.Sprintf("Found pod in children list that does not match ordinal pattern: %s", name))
+			parent.Log("WARN", "Found pod in children list that does not match ordinal pattern: %s", name)
 		}
 	}
 	i++
-	return fmt.Sprintf("%s-%s-%d", parent.Name, parentType, i)
+	return fmt.Sprintf("%s-%s-%d", parent.GetName(), parent.GetTFKindShort(), i)
 }
 
 func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
