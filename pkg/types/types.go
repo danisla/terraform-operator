@@ -187,12 +187,12 @@ func (parent *Terraform) GetConditionOrder() []TerraformConditionType {
 			}
 
 			// Inputs conditional on spec for inputs.
-			if c == ConditionTypeTerraformInputsReady && (*parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
+			if c == ConditionTypeTerraformInputsReady && (parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
 				continue
 			}
 
 			// VarsFrom conditional on spec for vars from.
-			if c == ConditionTypeTerraformVarsFromReady && (*parent.Spec.TFVarsFrom != nil || len(*parent.Spec.TFVarsFrom) == 0) {
+			if c == ConditionTypeTerraformVarsFromReady && (parent.Spec.TFVarsFrom == nil || len(*parent.Spec.TFVarsFrom) == 0) {
 				continue
 			}
 
@@ -294,7 +294,7 @@ func (conditions TerraformConditions) CheckConditions(conditionType TerraformCon
 	waiting := []string{}
 	for _, t := range conditionType.GetDependencies() {
 		condition := conditions[t]
-		if condition.Status != ConditionTrue {
+		if condition != nil && condition.Status != ConditionTrue {
 			waiting = append(waiting, string(t))
 		}
 	}

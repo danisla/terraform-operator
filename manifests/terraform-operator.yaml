@@ -19,7 +19,7 @@ metadata:
   name: terraform-operator-plan
 spec:
   generateSelector: true
-  resyncPeriodSeconds: 30
+  resyncPeriodSeconds: 10
   parentResource:
     apiVersion: ctl.isla.solutions/v1
     resource: terraformplans

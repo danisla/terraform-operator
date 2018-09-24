@@ -8,8 +8,8 @@ spec:
   backendBucket: {{.BackendBucket}}
   backendPrefix: {{.BucketPrefix}}
   providerConfig:
-    google:
-      secretName: {{.GoogleProviderSecretName}}
+  - name: google
+    secretName: {{.GoogleProviderSecretName}}
   sources:
   {{- range .ConfigMapSources }}
   - configMap:

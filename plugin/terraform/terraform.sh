@@ -257,7 +257,7 @@ spec:
   backendBucket: ${BACKEND_BUCKET}
   backendPrefix: ${BACKEND_PREFIX}
   providerConfig:
-  - name: google:
+  - name: google
     secretName: ${GOOGLE_PROVIDER_SECRET}
 ${tfplan}
   sources:

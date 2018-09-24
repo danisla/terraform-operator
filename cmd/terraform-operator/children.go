@@ -91,7 +91,7 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 func (tfp *TFPod) makeInitContainers() []corev1.Container {
 	initContainers := make([]corev1.Container, 0)
 
-	if len(*tfp.SourceData.GCSObjects) > 0 {
+	if tfp.SourceData.GCSObjects != nil && len(*tfp.SourceData.GCSObjects) > 0 {
 		envVars := make([]corev1.EnvVar, 0)
 
 		envVars = append(envVars, tfp.makeProviderEnv()...)
@@ -263,18 +263,20 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 
 	// ConfigMap volumes
 	var defaultMode int32 = 438
-	for k := range *tfp.SourceData.ConfigMapHashes {
-		volumes = append(volumes, corev1.Volume{
-			Name: k,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: k,
+	if tfp.SourceData.ConfigMapHashes != nil {
+		for k := range *tfp.SourceData.ConfigMapHashes {
+			volumes = append(volumes, corev1.Volume{
+				Name: k,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: k,
+						},
+						DefaultMode: &defaultMode,
 					},
-					DefaultMode: &defaultMode,
 				},
-			},
-		})
+			})
+		}
 	}
 
 	return volumes
@@ -290,12 +292,14 @@ func (tfp *TFPod) makeVolumeMounts() []corev1.VolumeMount {
 	})
 
 	// Mount each entity in the config
-	for _, t := range *tfp.SourceData.ConfigMapKeys {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      t[0],
-			MountPath: filepath.Join("/opt/terraform/", t[1]),
-			SubPath:   filepath.Base(t[1]),
-		})
+	if tfp.SourceData.ConfigMapKeys != nil {
+		for _, t := range *tfp.SourceData.ConfigMapKeys {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      t[0],
+				MountPath: filepath.Join("/opt/terraform/", t[1]),
+				SubPath:   filepath.Base(t[1]),
+			})
+		}
 	}
 
 	return volumeMounts
@@ -388,8 +392,10 @@ func makeOutputVarsSecret(name string, namespace string, vars *[]tftype.Terrafor
 
 	data := make(map[string]string, 0)
 
-	for _, v := range *vars {
-		data[v.Name] = v.Value
+	if vars != nil {
+		for _, v := range *vars {
+			data[v.Name] = v.Value
+		}
 	}
 
 	secret = corev1.Secret{
