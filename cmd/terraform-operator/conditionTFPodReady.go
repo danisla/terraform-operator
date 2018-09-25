@@ -48,8 +48,16 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 		TFVars:             tfVars,
 	}
 
-	// status.Sources.ConfigMapHashes = *sourceData.ConfigMapHashes
-	// status.Sources.EmbeddedConfigMaps = *sourceData.EmbeddedConfigMaps
+	if sourceData.ConfigMapHashes != nil {
+		for _, v := range *sourceData.ConfigMapHashes {
+			status.Sources.ConfigMapHashes = append(status.Sources.ConfigMapHashes, v)
+		}
+	}
+	if sourceData.EmbeddedConfigMaps != nil {
+		for _, k := range *sourceData.EmbeddedConfigMaps {
+			status.Sources.EmbeddedConfigMaps = append(status.Sources.EmbeddedConfigMaps, k)
+		}
+	}
 
 	if len(children.Pods) == 0 {
 		// New pod
@@ -156,6 +164,8 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 
 						status.TFPlanDiff = &summary
 
+						newStatus = tfv1.ConditionTrue
+
 					} else {
 						parent.Log("ERROR", "Pod/%s is missing terraform-plan annotation", podName)
 						condition.Reason = "Internal error"
@@ -177,6 +187,8 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 						secret := makeOutputVarsSecret(secretName, parent.GetNamespace(), outputVars)
 						children.claimChildAndGetCurrent(secret, desiredChildren)
 						status.TFOutputSecret = secret.GetName()
+
+						newStatus = tfv1.ConditionTrue
 					} else {
 						parent.Log("ERROR", "Pod/%s is missing terraform-output annotation", podName)
 						condition.Reason = "Internal error"
