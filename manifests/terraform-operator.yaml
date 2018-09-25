@@ -31,7 +31,7 @@ spec:
   - apiVersion: v1
     resource: configmaps
     updateStrategy:
-      method: InPlace
+      method: OnDelete
   hooks:
     sync:
       webhook:
@@ -71,7 +71,7 @@ spec:
   - apiVersion: v1
     resource: configmaps
     updateStrategy:
-      method: InPlace
+      method: OnDelete
   - apiVersion: v1
     resource: secrets
     updateStrategy:
@@ -115,7 +115,7 @@ spec:
   - apiVersion: v1
     resource: configmaps
     updateStrategy:
-      method: InPlace
+      method: OnDelete
   hooks:
     sync:
       webhook:

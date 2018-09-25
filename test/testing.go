@@ -25,12 +25,17 @@ type tfSpecData struct {
 	Image                    string
 	ConfigMapSources         []string
 	EmbeddedSources          []string
-	TFSources                []map[string]string
+	TFSources                []TFSource
 	BackendBucket            string
 	BucketPrefix             string
 	GoogleProviderSecretName string
 	TFVarsMap                map[string]string
 	TFPlan                   string
+}
+
+type TFSource struct {
+	TFApply string
+	TFPlan  string
 }
 
 type TerraformOutputVar struct {
@@ -237,4 +242,9 @@ func testWaitTF(t *testing.T, kind TFKind, namespace, name string) {
 			time.Sleep(time.Second * time.Duration(5))
 		}
 	}
+}
+
+func testVerifyOutputVars(t *testing.T, namespace, name string) {
+	tf := testGetTF(t, TFKindApply, namespace, name)
+	tf.VerifyOutputVars(t)
 }

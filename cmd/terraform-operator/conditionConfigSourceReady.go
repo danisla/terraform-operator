@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
@@ -29,7 +30,7 @@ func reconcileConfigSourceReady(condition *tfv1.TerraformCondition, parent *tfv1
 	embeddedConfigMaps := make(tfv1.EmbeddedConfigMaps, 0)
 
 	// Wait for all sources to become available.
-	for _, source := range *parent.Spec.Sources {
+	for _, source := range parent.Spec.Sources {
 		if source.ConfigMap != nil && source.ConfigMap.Name != "" {
 			configMapName := source.ConfigMap.Name
 
@@ -62,8 +63,18 @@ func reconcileConfigSourceReady(condition *tfv1.TerraformCondition, parent *tfv1
 				Name: configMapName,
 				Hash: configMapHash,
 			}
-			configMap := makeTerraformSourceConfigMap(configMapName, source.Embedded)
+			configMap := makeTerraformSourceConfigMap(configMapName, source.Embedded, fmt.Sprintf("%s.tf", configMapName))
+
+			// Claim existing configmaps
+			baseNamePat := regexp.MustCompile(fmt.Sprintf(`^(%s)-([A-Za-z0-9]{4})$`, podName))
+			for cmName, cm := range children.ConfigMaps {
+				if baseNamePat.MatchString(cmName) == false {
+					children.claimChildAndGetCurrent(cm, desiredChildren)
+				}
+			}
+
 			children.claimChildAndGetCurrent(configMap, desiredChildren)
+
 			embeddedConfigMaps = append(embeddedConfigMaps, configMapName)
 			for k := range configMap.Data {
 				tuple := []string{configMapName, k}
@@ -128,10 +139,10 @@ func reconcileConfigSourceReady(condition *tfv1.TerraformCondition, parent *tfv1
 						}
 					}
 
-					for _, tfsource := range *tf.Spec.Sources {
+					for _, tfsource := range tf.Spec.Sources {
 
 						// ConfigMap source
-						if tfsource.ConfigMap.Name != "" {
+						if tfsource.ConfigMap != nil {
 							configMapName := tfsource.ConfigMap.Name
 							configMapData, err := getConfigMapSourceData(parent.GetNamespace(), configMapName)
 							if err != nil {

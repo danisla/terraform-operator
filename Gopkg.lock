@@ -42,6 +42,22 @@
   revision = "6acdf747ae99cad92d1e8134606008acaca71844"
 
 [[projects]]
+  digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
+  name = "github.com/fsnotify/fsnotify"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
+  version = "v1.4.7"
+
+[[projects]]
+  digest = "1:a69ae1fc1e4565a3d07d76abeebb1fe8da03b348494b00a0a57325b91e41a73b"
+  name = "github.com/garethr/kubeval"
+  packages = ["kubeval"]
+  pruneopts = "UT"
+  revision = "c44f5193dc944abc00e60a1b041ce48b0ae03dfb"
+  version = "0.7.3"
+
+[[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -111,6 +127,41 @@
   version = "v0.2.0"
 
 [[projects]]
+  digest = "1:0ade334594e69404d80d9d323445d2297ff8161637f9b2d347cc6973d2d6f05b"
+  name = "github.com/hashicorp/errwrap"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8a6fb523712970c966eefc6b39ed2c5e74880354"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:f668349b83f7d779567c880550534addeca7ebadfdcf44b0b9c39be61864b4b7"
+  name = "github.com/hashicorp/go-multierror"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "886a7fbe3eb1c874d46f623bfa70af45f425b3d1"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
+  name = "github.com/hashicorp/hcl"
+  packages = [
+    ".",
+    "hcl/ast",
+    "hcl/parser",
+    "hcl/printer",
+    "hcl/scanner",
+    "hcl/strconv",
+    "hcl/token",
+    "json/parser",
+    "json/scanner",
+    "json/token",
+  ]
+  pruneopts = "UT"
+  revision = "8cb6e5b959231cc1119e43259c4a608f9c51a241"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:f9a5e090336881be43cfc1cf468330c1bdd60abdc9dd194e0b1ab69f4b94dd7c"
   name = "github.com/huandu/xstrings"
   packages = ["."]
@@ -143,6 +194,22 @@
   version = "v1.1.5"
 
 [[projects]]
+  digest = "1:c568d7727aa262c32bdf8a3f7db83614f7af0ed661474b24588de635c20024c7"
+  name = "github.com/magiconair/properties"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2353362d570a7bfa228149c62842019201cfb71"
+  version = "v1.8.0"
+
+[[projects]]
+  digest = "1:645110e089152bd0f4a011a2648fbb0e4df5977be73ca605781157ac297f50c4"
+  name = "github.com/mitchellh/mapstructure"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "fa473d140ef3c6adf42d6b391fe76707f1f243c8"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
@@ -159,12 +226,79 @@
   version = "1.0.1"
 
 [[projects]]
+  digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
+  name = "github.com/pelletier/go-toml"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c01d1270ff3e442a8a57cddc1c92dc1138598194"
+  version = "v1.2.0"
+
+[[projects]]
+  digest = "1:6a4a11ba764a56d2758899ec6f3848d24698d48442ebce85ee7a3f63284526cd"
+  name = "github.com/spf13/afero"
+  packages = [
+    ".",
+    "mem",
+  ]
+  pruneopts = "UT"
+  revision = "d40851caa0d747393da1ffb28f7f9d8b4eeffebd"
+  version = "v1.1.2"
+
+[[projects]]
+  digest = "1:516e71bed754268937f57d4ecb190e01958452336fa73dbac880894164e91c1f"
+  name = "github.com/spf13/cast"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8965335b8c7107321228e3e3702cab9832751bac"
+  version = "v1.2.0"
+
+[[projects]]
+  digest = "1:68ea4e23713989dc20b1bded5d9da2c5f9be14ff9885beef481848edd18c26cb"
+  name = "github.com/spf13/jwalterweatherman"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4a4406e478ca629068e7768fc33f3f044173c0a6"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:dab83a1bbc7ad3d7a6ba1a1cc1760f25ac38cdf7d96a5cdd55cd915a4f5ceaf9"
   name = "github.com/spf13/pflag"
   packages = ["."]
   pruneopts = "UT"
   revision = "9a97c102cda95a86cec2345a6f09f55a939babf5"
   version = "v1.0.2"
+
+[[projects]]
+  digest = "1:6e30a27eac59a148b3f7a32e0ba54706b31dcde5a42f63b22cb47873b62fa343"
+  name = "github.com/spf13/viper"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8fb642006536c8d3760c99d4fa2389f5e2205631"
+  version = "v1.2.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f4e5276a3b356f4692107047fd2890f2fe534f4feeb6b1fd2f6dfbd87f1ccf54"
+  name = "github.com/xeipuuv/gojsonpointer"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4e3ac2762d5f479393488629ee9370b50873b3a6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:dc6a6c28ca45d38cfce9f7cb61681ee38c5b99ec1425339bfc1e1a7ba769c807"
+  name = "github.com/xeipuuv/gojsonreference"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  digest = "1:41bd4de0a27c0b7affef4083bc8f86501b4c7d891f95809a0fb758a23eb5e78f"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "da425ebb7609ba06a0f395fc8a254d1c303364a0"
+  version = "v1.0"
 
 [[projects]]
   branch = "master"
@@ -392,6 +526,7 @@
     "cloud.google.com/go/compute/metadata",
     "github.com/Masterminds/sprig",
     "github.com/buger/jsonparser",
+    "github.com/garethr/kubeval/kubeval",
     "github.com/ghodss/yaml",
     "github.com/jinzhu/copier",
     "k8s.io/api/core/v1",

@@ -21,9 +21,8 @@ spec:
 {{ . | indent 6 }}
   {{- end }}
   {{- range .TFSources }}
-  {{- range $k, $v := .}} 
-  - {{ $k }}: {{ $v }}
-  {{- end }}
+  - tfplan: {{ .TFPlan }}
+    tfapply: {{ .TFApply }}
   {{- end }}
   {{- if .TFPlan }}
   tfplan: {{ .TFPlan }}

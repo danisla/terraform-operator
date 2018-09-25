@@ -60,7 +60,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 	if len(children.Pods) == 0 {
 		// New pod
 		podName := makeOrdinalPodName(parent, 0)
-		pod, err := tfp.makeTerraformPod(podName, parent.GetTFKind(), nil)
+		pod, err := tfp.makeTerraformPod(podName, parent.GetNamespace(), parent.GetTFKind(), nil)
 		if err != nil {
 			reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
 			return condition.Status
@@ -72,7 +72,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 
 	// Claim existing pods.
 	for podName, pod := range children.Pods {
-		newChild, err := tfp.makeTerraformPod(podName, parent.GetTFKind(), &pod)
+		newChild, err := tfp.makeTerraformPod(podName, parent.GetNamespace(), parent.GetTFKind(), &pod)
 		if err != nil {
 			reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
 			return condition.Status
@@ -116,7 +116,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 
 							// Create new pod
 							newPodName := makeOrdinalPodName(parent, (index + 1))
-							pod, err := tfp.makeTerraformPod(newPodName, parent.GetTFKind(), nil)
+							pod, err := tfp.makeTerraformPod(newPodName, parent.GetNamespace(), parent.GetTFKind(), nil)
 							if err != nil {
 								reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
 								return condition.Status
@@ -178,7 +178,6 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 			case corev1.PodSucceeded:
 				// Passed
 				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusPassed)
-				status.RetryCount = 0
 				status.RetryNextAt = ""
 
 			case corev1.PodFailed:
@@ -186,40 +185,34 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusFailed)
 				maxRetry := getPodMaxAttempts(parent)
 
-				// Attempt retry
-				status.RetryCount++
+				reasons = append(reasons, fmt.Sprintf("Pod/%s.%s: Attempt %d %s", podName, cStatus.Name, status.RetryCount, cStatus.State.Terminated.Message))
 
-				reasons = append(reasons, fmt.Sprintf("Pod/%s.%s: Attempt (%d/%d): %s", podName, cStatus.Name, status.RetryCount, maxRetry, cStatus.State.Terminated.Message))
-
-				if status.RetryCount >= maxRetry {
-					// Retries exceeded, reset and attept again. This is a continuous retry loop with exponential backoff.
-					status.RetryCount = 0
-					status.RetryNextAt = ""
+				finishedAt, err := time.Parse(time.RFC3339, status.FinishedAt)
+				if err != nil {
+					parent.Log("ERROR", "Failed to parse time: %v", err)
+					reasons = append(reasons, "Internal error")
 				} else {
-					finishedAt, err := time.Parse(time.RFC3339, status.FinishedAt)
-					if err != nil {
-						parent.Log("ERROR", "Failed to parse time: %v", err)
-						reasons = append(reasons, "Internal error")
-					} else {
-						backoff := computeExponentialBackoff(status.RetryCount, tfDriverConfig.BackoffScale)
-						timeSinceFinished := time.Since(finishedAt)
-						if timeSinceFinished.Seconds() >= backoff {
-							// Done waiting for backoff.
+					backoff := computeExponentialBackoff(status.RetryCount%maxRetry, tfDriverConfig.BackoffScale)
+					timeSinceFinished := time.Since(finishedAt)
+					if timeSinceFinished.Seconds() >= backoff {
+						// Done waiting for backoff.
 
-							// Generate a new ordinal pod child
-							// Create new pod
-							newPodName := makeOrdinalPodName(parent, (index + 1))
-							pod, err := tfp.makeTerraformPod(newPodName, parent.GetTFKind(), nil)
-							if err != nil {
-								reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
-								return condition.Status
-							}
-							children.claimChildAndGetCurrent(pod, desiredChildren)
-							parent.Log("INFO", "Creating Pod/%s", podName)
+						// Attempt retry
+						status.RetryCount++
+
+						// Generate a new ordinal pod child
+						// Create new pod
+						newPodName := makeOrdinalPodName(parent, (index + 1))
+						pod, err := tfp.makeTerraformPod(newPodName, parent.GetNamespace(), parent.GetTFKind(), nil)
+						if err != nil {
+							reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
+							return condition.Status
 						}
-						nextAttemptTime := finishedAt.Add(time.Second * time.Duration(int64(backoff)))
-						status.RetryNextAt = nextAttemptTime.Format(time.RFC3339)
+						children.claimChildAndGetCurrent(pod, desiredChildren)
+						parent.Log("INFO", "Creating Pod/%s", podName)
 					}
+					nextAttemptTime := finishedAt.Add(time.Second * time.Duration(int64(backoff)))
+					status.RetryNextAt = nextAttemptTime.Format(time.RFC3339)
 				}
 
 			default:

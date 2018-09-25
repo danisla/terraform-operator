@@ -77,7 +77,7 @@ func (parent *Terraform) Verify() error {
 	}
 
 	// Verify no cycles in TF sources
-	for _, s := range *parent.Spec.Sources {
+	for _, s := range parent.Spec.Sources {
 		if s.TFApply != "" {
 			if s.TFApply == parent.GetName() && parent.GetTFKind() == TFKindApply {
 				return fmt.Errorf("source.tfapply %s/%s: CYCLE", parent.GetTFKind(), s.TFApply)
@@ -173,18 +173,18 @@ func (parent *Terraform) GetConditionOrder() []TerraformConditionType {
 
 		if parent.Spec != nil {
 			// Config source conditional on spec for config.
-			if c == ConditionTypeTerraformConfigSourceReady {
-				found := false
-				for _, s := range *parent.Spec.Sources {
-					if s.ConfigMap != nil || s.TFApply != "" || s.TFPlan != "" {
-						found = true
-						break
-					}
-				}
-				if found {
-					continue
-				}
-			}
+			// if c == ConditionTypeTerraformConfigSourceReady {
+			// 	found := false
+			// 	for _, s := range parent.Spec.Sources {
+			// 		if s.ConfigMap != nil || s.TFApply != "" || s.TFPlan != "" {
+			// 			found = true
+			// 			break
+			// 		}
+			// 	}
+			// 	if found {
+			// 		continue
+			// 	}
+			// }
 
 			// Inputs conditional on spec for inputs.
 			if c == ConditionTypeTerraformInputsReady && (parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
@@ -311,7 +311,7 @@ type TerraformSpec struct {
 	BackendBucket   string                         `json:"backendBucket,omitempty"`
 	BackendPrefix   string                         `json:"backendPrefix,omitempty"`
 	ProviderConfig  *[]TerraformSpecProviderConfig `json:"providerConfig,omitempty"`
-	Sources         *[]TerraformConfigSource       `json:"sources,omitempty"`
+	Sources         []TerraformConfigSource        `json:"sources,omitempty"`
 	TFPlan          string                         `json:"tfplan,omitempty"`
 	TFInputs        *[]TerraformConfigInputs       `json:"tfinputs,omitempty"`
 	TFVars          *[]TFVar                       `json:"tfvars,omitempty"`
@@ -332,7 +332,7 @@ func (spec *TerraformSpec) Verify() error {
 		return fmt.Errorf("Missing 'spec.providerConfig'")
 	}
 
-	if spec.Sources == nil || len(*spec.Sources) == 0 {
+	if len(spec.Sources) == 0 {
 		return fmt.Errorf("Missing 'spec.sources'")
 	}
 

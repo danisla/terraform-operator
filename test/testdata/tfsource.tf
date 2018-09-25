@@ -15,7 +15,7 @@ data "google_compute_zones" "available" {
 }
 resource "google_compute_project_metadata_item" "default" {
   key = "${var.metadata_key}"
-  value = "tf-operator-test"
+  value = "tf-operator-test-${element(data.google_compute_zones.available.names, 0)}"
 }
 data "google_client_config" "current" {}
 output "project" {

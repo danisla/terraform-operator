@@ -40,7 +40,7 @@ type TFPod struct {
 	TFVars             TerraformInputVars
 }
 
-func (tfp *TFPod) makeTerraformPod(podName string, kind tfv1.TFKind, currPod *corev1.Pod) (Pod, error) {
+func (tfp *TFPod) makeTerraformPod(podName, namespace string, kind tfv1.TFKind, currPod *corev1.Pod) (Pod, error) {
 	var pod Pod
 
 	envVars := tfp.makeEnvVars(podName)
@@ -53,10 +53,23 @@ func (tfp *TFPod) makeTerraformPod(podName string, kind tfv1.TFKind, currPod *co
 
 	containerResources := tfp.makeContainerResources()
 
-	objectMeta := metav1.ObjectMeta{
+	annotations := make(map[string]string, 0)
+
+	if currPod != nil {
+		for k, v := range currPod.GetAnnotations() {
+			if k == "metacontroller.k8s.io/last-applied-configuration" {
+				continue
+			} else {
+				annotations[k] = v
+			}
+		}
+	}
+
+	objectMeta := ObjectMeta{
 		Name:        podName,
+		Namespace:   namespace,
 		Labels:      labels,
-		Annotations: map[string]string{},
+		Annotations: annotations,
 	}
 
 	var podCmd string
@@ -93,14 +106,6 @@ func (tfp *TFPod) makeTerraformPod(podName string, kind tfv1.TFKind, currPod *co
 
 	if currPod != nil {
 		copier.Copy(&podSpec, currPod.Spec)
-
-		for k, v := range currPod.Annotations {
-			if k == "metacontroller.k8s.io/last-applied-configuration" {
-				continue
-			} else {
-				objectMeta.Annotations[k] = v
-			}
-		}
 	}
 
 	pod = Pod{
@@ -303,20 +308,18 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 
 	// ConfigMap volumes
 	var defaultMode int32 = 438
-	if tfp.SourceData.ConfigMapHashes != nil {
-		for k := range tfp.SourceData.ConfigMapHashes {
-			volumes = append(volumes, corev1.Volume{
-				Name: k,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: k,
-						},
-						DefaultMode: &defaultMode,
+	for k := range tfp.SourceData.ConfigMapHashes {
+		volumes = append(volumes, corev1.Volume{
+			Name: k,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: k,
 					},
+					DefaultMode: &defaultMode,
 				},
-			})
-		}
+			},
+		})
 	}
 
 	return volumes
@@ -332,14 +335,12 @@ func (tfp *TFPod) makeVolumeMounts() []corev1.VolumeMount {
 	})
 
 	// Mount each entity in the config
-	if tfp.SourceData.ConfigMapKeys != nil {
-		for _, t := range tfp.SourceData.ConfigMapKeys {
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      t[0],
-				MountPath: filepath.Join("/opt/terraform/", t[1]),
-				SubPath:   filepath.Base(t[1]),
-			})
-		}
+	for _, t := range tfp.SourceData.ConfigMapKeys {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      t[0],
+			MountPath: filepath.Join("/opt/terraform/", t[1]),
+			SubPath:   filepath.Base(t[1]),
+		})
 	}
 
 	return volumeMounts
@@ -390,18 +391,20 @@ func makeOrdinalPodName(parent *tfv1.Terraform, index int) string {
 	return fmt.Sprintf("%s-%s-%d", parent.GetName(), parent.GetTFKindShort(), index)
 }
 
-func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
+func makeTerraformSourceConfigMap(name string, data string, filename string) corev1.ConfigMap {
 	cmData := strings.TrimSpace(data)
-	keyName := "main.tf"
 
 	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ConfigMap",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Annotations: map[string]string{},
+		},
 		Data: map[string]string{
-			keyName: cmData,
+			filename: cmData,
 		},
 	}
 	return cm
@@ -442,8 +445,9 @@ func makeOutputVarsSecret(name string, namespace string, vars []tfv1.TerraformOu
 			Kind:       "Secret",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: map[string]string{},
 		},
 		StringData: data,
 	}

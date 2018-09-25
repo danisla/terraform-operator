@@ -9,6 +9,9 @@ test: $(ALL_TESTS)
 
 test-keep: $(addprefix Keep,$(ALL_TESTS))
 
+test-list:
+	cd test && gotest -list Test*
+
 project:
 	$(eval PROJECT := $(shell gcloud config get-value project 2>/dev/null))
 
