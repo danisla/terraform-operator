@@ -123,14 +123,14 @@ func (tfp *TFPod) makeContainerResources() corev1.ResourceRequirements {
 func (tfp *TFPod) makeInitContainers() []corev1.Container {
 	initContainers := make([]corev1.Container, 0)
 
-	if tfp.SourceData.GCSObjects != nil && len(*tfp.SourceData.GCSObjects) > 0 {
+	if len(tfp.SourceData.GCSObjects) > 0 {
 		envVars := make([]corev1.EnvVar, 0)
 
 		envVars = append(envVars, tfp.makeProviderEnv()...)
 
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "GCS_TARBALLS",
-			Value: strings.Join(*tfp.SourceData.GCSObjects, ","),
+			Value: strings.Join(tfp.SourceData.GCSObjects, ","),
 		})
 
 		initContainers = append(initContainers, corev1.Container{
@@ -296,7 +296,7 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 	// ConfigMap volumes
 	var defaultMode int32 = 438
 	if tfp.SourceData.ConfigMapHashes != nil {
-		for k := range *tfp.SourceData.ConfigMapHashes {
+		for k := range tfp.SourceData.ConfigMapHashes {
 			volumes = append(volumes, corev1.Volume{
 				Name: k,
 				VolumeSource: corev1.VolumeSource{
@@ -325,7 +325,7 @@ func (tfp *TFPod) makeVolumeMounts() []corev1.VolumeMount {
 
 	// Mount each entity in the config
 	if tfp.SourceData.ConfigMapKeys != nil {
-		for _, t := range *tfp.SourceData.ConfigMapKeys {
+		for _, t := range tfp.SourceData.ConfigMapKeys {
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      t[0],
 				MountPath: filepath.Join("/opt/terraform/", t[1]),

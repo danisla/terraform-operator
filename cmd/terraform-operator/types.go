@@ -98,10 +98,10 @@ type TerraformSpecCredentials struct {
 
 // TerraformConfigSourceData is the structure of all of the extracted config sources used by the Terraform Pod.
 type TerraformConfigSourceData struct {
-	ConfigMapHashes    *map[string]tftype.ConfigMapHash
-	ConfigMapKeys      *tftype.ConfigMapKeys
-	GCSObjects         *tftype.GCSObjects
-	EmbeddedConfigMaps *tftype.EmbeddedConfigMaps
+	ConfigMapHashes    map[string]tftype.ConfigMapHash
+	ConfigMapKeys      tftype.ConfigMapKeys
+	GCSObjects         tftype.GCSObjects
+	EmbeddedConfigMaps tftype.EmbeddedConfigMaps
 }
 
 // ConfigMapSourceData is an internal structure for mapping config map keys to strings and performing validation and hashing.

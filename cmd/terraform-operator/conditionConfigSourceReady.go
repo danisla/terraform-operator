@@ -29,15 +29,15 @@ func reconcileConfigSourceReady(condition *tfv1.TerraformCondition, parent *tfv1
 	embeddedConfigMaps := make(tfv1.EmbeddedConfigMaps, 0)
 
 	sourceData := TerraformConfigSourceData{
-		ConfigMapHashes:    &configMapHashes,
-		ConfigMapKeys:      &configMapKeys,
-		GCSObjects:         &gcsObjects,
-		EmbeddedConfigMaps: &embeddedConfigMaps,
+		ConfigMapHashes:    configMapHashes,
+		ConfigMapKeys:      configMapKeys,
+		GCSObjects:         gcsObjects,
+		EmbeddedConfigMaps: embeddedConfigMaps,
 	}
 
 	// Wait for all sources to become available.
 	for _, source := range *parent.Spec.Sources {
-		if source.ConfigMap.Name != "" {
+		if source.ConfigMap != nil && source.ConfigMap.Name != "" {
 			configMapName := source.ConfigMap.Name
 
 			configMapData, err := getConfigMapSourceData(parent.GetNamespace(), configMapName)

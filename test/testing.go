@@ -47,7 +47,7 @@ const (
 	defaultGoogleProviderSecret = "tf-provider-google"
 	defaultBucketPrefix         = "terraform"
 	defaultTFSpecFile           = "tfspec.tpl.yaml"
-	defaultTFSourcePath         = "testdata/tfsource.tf"
+	defaultTFSourcePath         = "tfsource.tf"
 )
 
 type TFKind string
@@ -170,7 +170,7 @@ func testRunCmd(t *testing.T, cmdStr string, stdin string) string {
 }
 
 func testApplyTFSourceConfigMap(t *testing.T, namespace, name string) {
-	cmdStr := fmt.Sprintf("kubectl -n %s create --save-config=true configmap %s --from-file=main.tf=%s --dry-run -o yaml | kubectl apply -f -", namespace, name, defaultTFSourcePath)
+	cmdStr := fmt.Sprintf("kubectl -n %s create --save-config=true configmap %s --from-file=main.tf=%s --dry-run -o yaml | kubectl apply -f -", namespace, name, filepath.Join("testdata", defaultTFSourcePath))
 	testRunCmd(t, cmdStr, "")
 }
 

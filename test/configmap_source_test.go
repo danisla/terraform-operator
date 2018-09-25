@@ -9,6 +9,9 @@ func testConfigMapSourceTF(t *testing.T, kind TFKind, name, cmName string) {
 		Kind:             kind,
 		Name:             name,
 		ConfigMapSources: []string{cmName},
+		TFVarsMap: map[string]string{
+			"metadata_key": name,
+		},
 	})
 	t.Log(tf)
 	testApply(t, namespace, tf)

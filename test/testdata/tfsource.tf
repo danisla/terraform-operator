@@ -4,11 +4,17 @@ variable "region" {
 variable "escape_test" {
   default = "%"
 }
+variable "metadata_key" {
+  default = "tf-test-key"
+}
 provider "google" {
   region = "${var.region}"
 }
+data "google_compute_zones" "available" {
+  region = "${var.region}"
+}
 resource "google_compute_project_metadata_item" "default" {
-  key = "tf-job-test"
+  key = "${var.metadata_key}"
   value = "tf-operator-test"
 }
 data "google_client_config" "current" {}
@@ -17,6 +23,9 @@ output "project" {
 }
 output "region" {
   value = "${var.region}"
+}
+output "zones" {
+  value = "${join(",", data.google_compute_zones.available.names)}"
 }
 output "metadata_key" {
   value = "${google_compute_project_metadata_item.default.key}"

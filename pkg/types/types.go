@@ -209,23 +209,21 @@ func (parent *Terraform) GetConditionOrder() []TerraformConditionType {
 
 // TerraformOperatorStatus is the status structure for the custom resource
 type TerraformOperatorStatus struct {
-	LastAppliedSig string                          `json:"lastAppliedSig,omitempty"`
-	Sources        *TerraformOperatorStatusSources `json:"sources,omitempty"`
-	StateCurrent   TerraformOperatorState          `json:"stateCurrent,omitempty"`
-	PodName        string                          `json:"podName,omitempty"`
-	PodStatus      PodStatus                       `json:"podStatus,omitempty"`
-	StartedAt      string                          `json:"startedAt,omitempty"`
-	FinishedAt     string                          `json:"finishedAt,omitempty"`
-	Duration       string                          `json:"duration,omitempty"`
-	TFPlan         string                          `json:"planFile,omitempty"`
-	TFPlanDiff     *TerraformPlanFileSummary       `json:"planDiff,omitempty"`
-	TFOutput       *[]TerraformOutputVar           `json:"outputs,omitempty"`
-	TFOutputSecret string                          `json:"outputsSecret,omitempty"`
-	RetryCount     int32                           `json:"retryCount,omitempty"`
-	RetryNextAt    string                          `json:"retryNextAt,omitempty"`
-	Workspace      string                          `json:"workspace,omitempty"`
-	StateFile      string                          `json:"stateFile,omitempty"`
-	Conditions     []TerraformCondition            `json:"conditions,omitempty"`
+	Sources        TerraformOperatorStatusSources `json:"sources,omitempty"`
+	PodName        string                         `json:"podName,omitempty"`
+	PodStatus      PodStatus                      `json:"podStatus,omitempty"`
+	StartedAt      string                         `json:"startedAt,omitempty"`
+	FinishedAt     string                         `json:"finishedAt,omitempty"`
+	Duration       string                         `json:"duration,omitempty"`
+	TFPlan         string                         `json:"planFile,omitempty"`
+	TFPlanDiff     *TerraformPlanFileSummary      `json:"planDiff,omitempty"`
+	TFOutput       *[]TerraformOutputVar          `json:"outputs,omitempty"`
+	TFOutputSecret string                         `json:"outputsSecret,omitempty"`
+	RetryCount     int32                          `json:"retryCount,omitempty"`
+	RetryNextAt    string                         `json:"retryNextAt,omitempty"`
+	Workspace      string                         `json:"workspace,omitempty"`
+	StateFile      string                         `json:"stateFile,omitempty"`
+	Conditions     []TerraformCondition           `json:"conditions,omitempty"`
 }
 
 // TerraformCondition defines the format for a status condition element.
@@ -388,8 +386,8 @@ type VarMapItem struct {
 
 // TerraformOperatorStatusSources describes the status.sources structure.
 type TerraformOperatorStatusSources struct {
-	ConfigMapHashes    []ConfigMapHash    `json:"configMapHashes"`
-	EmbeddedConfigMaps EmbeddedConfigMaps `json:"embeddedConfigMaps"`
+	ConfigMapHashes    []ConfigMapHash    `json:"configMapHashes,omitempty"`
+	EmbeddedConfigMaps EmbeddedConfigMaps `json:"embeddedConfigMaps,omitempty"`
 }
 
 // TerraformPlanFileSummary summarizes the changes in a terraform plan

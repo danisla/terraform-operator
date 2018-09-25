@@ -31,6 +31,7 @@ spec:
   {{- if .TFVarsMap }}
   tfvars:
   {{- range $k, $v := .TFVarsMap}}
-    {{ $k }}: {{ $v }}
+  - name: {{ $k }}
+    value: {{ $v }}
   {{- end}}
   {{- end }}

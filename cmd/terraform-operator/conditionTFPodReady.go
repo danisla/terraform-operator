@@ -48,15 +48,13 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 		TFVars:             tfVars,
 	}
 
-	if sourceData.ConfigMapHashes != nil {
-		for _, v := range *sourceData.ConfigMapHashes {
-			status.Sources.ConfigMapHashes = append(status.Sources.ConfigMapHashes, v)
-		}
+	status.Sources.ConfigMapHashes = make([]tfv1.ConfigMapHash, 0)
+	for _, v := range sourceData.ConfigMapHashes {
+		status.Sources.ConfigMapHashes = append(status.Sources.ConfigMapHashes, v)
 	}
-	if sourceData.EmbeddedConfigMaps != nil {
-		for _, k := range *sourceData.EmbeddedConfigMaps {
-			status.Sources.EmbeddedConfigMaps = append(status.Sources.EmbeddedConfigMaps, k)
-		}
+	status.Sources.EmbeddedConfigMaps = make(tfv1.EmbeddedConfigMaps, 0)
+	for _, k := range sourceData.EmbeddedConfigMaps {
+		status.Sources.EmbeddedConfigMaps = append(status.Sources.EmbeddedConfigMaps, k)
 	}
 
 	if len(children.Pods) == 0 {
