@@ -13,7 +13,8 @@ func reconcileConfigSourceReady(condition *tfv1.TerraformCondition, parent *tfv1
 	allFound := true
 	reasons := make([]string, 0)
 
-	podName := makeOrdinalPodName(parent, children)
+	index := getLastPodIndex(children.Pods)
+	podName := makeOrdinalPodName(parent, index)
 
 	// Map of ConfigMap source names to content hashes.
 	configMapHashes := make(map[string]tfv1.ConfigMapHash, 0)

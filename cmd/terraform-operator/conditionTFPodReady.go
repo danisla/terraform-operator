@@ -15,7 +15,6 @@ import (
 func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}, providerConfigKeys *ProviderConfigKeys, sourceData *TerraformConfigSourceData, tfInputVars *TerraformInputVars, tfVarsFrom *TerraformInputVars, tfplanfile string) tfv1.ConditionStatus {
 	newStatus := tfv1.ConditionFalse
 	reasons := make([]string, 0)
-	podName := makeOrdinalPodName(parent, children)
 
 	// Get the image and pull policy (or default) from the spec.
 	image, imagePullPolicy := getImageAndPullPolicy(parent)
@@ -52,49 +51,41 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 	// status.Sources.ConfigMapHashes = *sourceData.ConfigMapHashes
 	// status.Sources.EmbeddedConfigMaps = *sourceData.EmbeddedConfigMaps
 
-	// Make Terraform Pod
-	var newPod corev1.Pod
-	var err error
-	switch parent.GetTFKind() {
-	case tfv1.TFKindPlan:
-		newPod, err = tfp.makeTerraformPod(podName, []string{PLAN_POD_CMD})
-	case tfv1.TFKindApply:
-		newPod, err = tfp.makeTerraformPod(podName, []string{APPLY_POD_CMD})
-	case tfv1.TFKindDestroy:
-		newPod, err = tfp.makeTerraformPod(podName, []string{DESTROY_POD_CMD})
-	default:
-		// This should not happen.
-		parent.Log("ERROR", fmt.Sprintf("Unhandled parent kind in switch: %s", parent.GetTFKind()))
-		return condition.Status
-	}
-	if err != nil {
-		reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
-		return condition.Status
-	}
-
-	pod, ok := children.Pods[status.PodName]
-	if ok == false {
-		// Pod not yet created.
-		status.PodName = podName
-		children.claimChildAndGetCurrent(newPod, desiredChildren)
-		condition.Reason = fmt.Sprintf("Pod/%s: CREATED", podName)
+	if len(children.Pods) == 0 {
+		// New pod
+		podName := makeOrdinalPodName(parent, 0)
+		pod, err := tfp.makeTerraformPod(podName, parent.GetTFKind(), nil)
+		if err != nil {
+			reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
+			return condition.Status
+		}
+		children.claimChildAndGetCurrent(pod, desiredChildren)
 		parent.Log("INFO", "Creating Pod/%s", podName)
-		return newStatus
+		return condition.Status
 	}
 
-	// Set podName to existing pod name, rather than new ordinal name
-	podName = pod.GetName()
+	// Claim existing pods.
+	for podName, pod := range children.Pods {
+		newChild, err := tfp.makeTerraformPod(podName, parent.GetTFKind(), &pod)
+		if err != nil {
+			reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
+			return condition.Status
+		}
+		children.claimChildAndGetCurrent(newChild, desiredChildren)
+	}
 
-	// Claim the pod
-	*desiredChildren = append(*desiredChildren, pod)
+	index := getLastPodIndex(children.Pods)
+	podName := makeOrdinalPodName(parent, index)
+	currPod := children.Pods[podName]
+	podStatus := currPod.Status
 
 	// Check status of init containers
-	for _, cStatus := range pod.Status.InitContainerStatuses {
+	for _, cStatus := range podStatus.InitContainerStatuses {
 		switch cStatus.Name {
 		case GCS_TARBALL_CONTAINER_NAME:
-			switch pod.Status.Phase {
+			switch podStatus.Phase {
 			case corev1.PodFailed:
-				setFinalPodStatus(parent, status, cStatus, pod, tfv1.PodStatusFailed)
+				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusFailed)
 				maxRetry := getPodMaxAttempts(parent)
 
 				// Attempt retry
@@ -117,10 +108,16 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 						if timeSinceFinished.Seconds() >= backoff {
 							// Done waiting for backoff.
 
-							// Generate a new ordinal pod child
-							status.PodName = podName
-							children.claimChildAndGetCurrent(newPod, desiredChildren)
+							// Create new pod
+							newPodName := makeOrdinalPodName(parent, (index + 1))
+							pod, err := tfp.makeTerraformPod(newPodName, parent.GetTFKind(), nil)
+							if err != nil {
+								reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
+								return condition.Status
+							}
+							children.claimChildAndGetCurrent(pod, desiredChildren)
 							parent.Log("INFO", "Creating Pod/%s", podName)
+							return condition.Status
 						}
 						nextAttemptTime := finishedAt.Add(time.Second * time.Duration(int64(backoff)))
 						status.RetryNextAt = nextAttemptTime.Format(time.RFC3339)
@@ -131,14 +128,14 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 	} // End init container check.
 
 	// Check pod containers
-	for _, cStatus := range pod.Status.ContainerStatuses {
+	for _, cStatus := range podStatus.ContainerStatuses {
 		switch cStatus.Name {
 		case TERRAFORM_CONTAINER_NAME:
 
-			switch pod.Status.Phase {
+			switch podStatus.Phase {
 			case corev1.PodSucceeded:
 				// Passed
-				setFinalPodStatus(parent, status, cStatus, pod, tfv1.PodStatusPassed)
+				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusPassed)
 				status.RetryCount = 0
 				status.RetryNextAt = ""
 
@@ -146,7 +143,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 				switch parent.GetTFKind() {
 				case tfv1.TFKindPlan:
 					// Populate status.TFPlan from completed pod annotation.
-					if plan, ok := pod.Annotations["terraform-plan"]; ok == true {
+					if plan, ok := currPod.Annotations["terraform-plan"]; ok == true {
 						status.TFPlan = plan
 
 						// Parse the plan
@@ -166,7 +163,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 					}
 				case tfv1.TFKindApply:
 					// Populate status.TFOutput map from completed pod annotation.
-					if output, ok := pod.Annotations["terraform-output"]; ok == true {
+					if output, ok := currPod.Annotations["terraform-output"]; ok == true {
 						outputVars, err := makeOutputVars(output)
 						if err != nil {
 							parent.Log("ERROR", "Pod/%s: Failed to parse output vars: %v", podName, err)
@@ -189,7 +186,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 
 			case corev1.PodFailed:
 				// Failed
-				setFinalPodStatus(parent, status, cStatus, pod, tfv1.PodStatusFailed)
+				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusFailed)
 				maxRetry := getPodMaxAttempts(parent)
 
 				// Attempt retry
@@ -213,8 +210,14 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 							// Done waiting for backoff.
 
 							// Generate a new ordinal pod child
-							status.PodName = podName
-							children.claimChildAndGetCurrent(newPod, desiredChildren)
+							// Create new pod
+							newPodName := makeOrdinalPodName(parent, (index + 1))
+							pod, err := tfp.makeTerraformPod(newPodName, parent.GetTFKind(), nil)
+							if err != nil {
+								reasons = append(reasons, fmt.Sprintf("Pod/%s: Failed to create pod: %v", podName, err))
+								return condition.Status
+							}
+							children.claimChildAndGetCurrent(pod, desiredChildren)
 							parent.Log("INFO", "Creating Pod/%s", podName)
 						}
 						nextAttemptTime := finishedAt.Add(time.Second * time.Duration(int64(backoff)))
@@ -228,6 +231,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 					status.StartedAt = cStatus.State.Running.StartedAt.Format(time.RFC3339)
 				}
 
+				status.PodName = currPod.GetName()
 				status.RetryNextAt = ""
 				status.PodStatus = tfv1.PodStatusRunning
 				reasons = append(reasons, fmt.Sprintf("Pod/%s: RUNNING", podName))

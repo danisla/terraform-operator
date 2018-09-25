@@ -16,7 +16,7 @@ gotest:
 	$(eval GOTEST := $(shell command -v gotest || go get -u github.com/rakyll/gotest))
 
 Test%: gotest project
-	@export GOOGLE_PROJECT=$(PROJECT) && cd test && gotest -run Test$* $(GOTEST_ARGS) -args $(DELETE_ARG)
+	@export GOOGLE_PROJECT=$(PROJECT) && cd test && gotest -run 'Test$*$$' $(GOTEST_ARGS) -args $(DELETE_ARG)
 
 Keep%: gotest project
-	@export GOOGLE_PROJECT=$(PROJECT) && cd test && gotest -run $* -args -delete=false
+	@export GOOGLE_PROJECT=$(PROJECT) && cd test && gotest -run '$*$$' -args -delete=false

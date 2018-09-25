@@ -23,6 +23,10 @@ type TerraformDriverConfig struct {
 	MaxAttempts                int32
 	BackoffScale               float64
 	GoogleProviderConfigSecret string
+	PodCmdPlan                 string
+	PodCmdApply                string
+	PodCmdDestroy              string
+	PodCmdGCSTarball           string
 }
 
 func (c *TerraformDriverConfig) LoadAndValidate(project string) error {
@@ -91,6 +95,34 @@ func (c *TerraformDriverConfig) LoadAndValidate(project string) error {
 		c.BackoffScale = f
 	} else {
 		c.BackoffScale = 5.0
+	}
+
+	// TF_POD_PLAN_CMD is optional
+	if podCmd, ok := os.LookupEnv("TF_POD_PLAN_CMD"); ok == true {
+		c.PodCmdPlan = podCmd
+	} else {
+		c.PodCmdPlan = "/run-terraform-plan.sh"
+	}
+
+	// TF_POD_APPLY_CMD is optional
+	if podCmd, ok := os.LookupEnv("TF_POD_APPLY_CMD"); ok == true {
+		c.PodCmdApply = podCmd
+	} else {
+		c.PodCmdApply = "/run-terraform-apply.sh"
+	}
+
+	// TF_POD_DESTROY_CMD is optional
+	if podCmd, ok := os.LookupEnv("TF_POD_DESTROY_CMD"); ok == true {
+		c.PodCmdDestroy = podCmd
+	} else {
+		c.PodCmdDestroy = "/run-terraform-destroy.sh"
+	}
+
+	// TF_POD_GCS_TARBALL_CMD is optional
+	if podCmd, ok := os.LookupEnv("TF_POD_GCS_TARBALL_CMD"); ok == true {
+		c.PodCmdGCSTarball = podCmd
+	} else {
+		c.PodCmdGCSTarball = "/get-gcs-tarball.sh"
 	}
 
 	if googleConfigSecret, ok := os.LookupEnv("TF_GOOGLE_PROVIDER_SECRET"); ok == true {
