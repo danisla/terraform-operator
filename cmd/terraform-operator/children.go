@@ -93,6 +93,14 @@ func (tfp *TFPod) makeTerraformPod(podName string, kind tfv1.TFKind, currPod *co
 
 	if currPod != nil {
 		copier.Copy(&podSpec, currPod.Spec)
+
+		for k, v := range currPod.Annotations {
+			if k == "metacontroller.k8s.io/last-applied-configuration" {
+				continue
+			} else {
+				objectMeta.Annotations[k] = v
+			}
+		}
 	}
 
 	pod = Pod{
@@ -417,13 +425,13 @@ func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {
 	return fmt.Sprintf("gs://%s/%s/%s.tfstate", backendBucket, backendPrefix, workspace)
 }
 
-func makeOutputVarsSecret(name string, namespace string, vars *[]tfv1.TerraformOutputVar) corev1.Secret {
+func makeOutputVarsSecret(name string, namespace string, vars []tfv1.TerraformOutputVar) corev1.Secret {
 	var secret corev1.Secret
 
 	data := make(map[string]string, 0)
 
 	if vars != nil {
-		for _, v := range *vars {
+		for _, v := range vars {
 			data[v.Name] = v.Value
 		}
 	}

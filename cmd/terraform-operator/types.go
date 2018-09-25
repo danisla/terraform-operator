@@ -5,33 +5,33 @@ import (
 	"sort"
 	"strings"
 
-	tftype "github.com/danisla/terraform-operator/pkg/types"
+	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	// StateNone is the inital state for a new spec.
-	StateNone = tftype.TerraformOperatorState("NONE")
+	StateNone = tfv1.TerraformOperatorState("NONE")
 	// StateIdle means there are no more changes pending
-	StateIdle = tftype.TerraformOperatorState("IDLE")
+	StateIdle = tfv1.TerraformOperatorState("IDLE")
 	// StateWaitComplete is used to indicate that a wait is complete and to transition back through the idle handler.
-	StateWaitComplete = tftype.TerraformOperatorState("WAIT_COMPLETE")
+	StateWaitComplete = tfv1.TerraformOperatorState("WAIT_COMPLETE")
 	// StateSpecFromPending means the controller is waiting for the input spec resource to become available.
-	StateSpecFromPending = tftype.TerraformOperatorState("SPEC_FROM_PENDING")
+	StateSpecFromPending = tfv1.TerraformOperatorState("SPEC_FROM_PENDING")
 	// StateSourcePending means the controller is waiting for the source ConfigMap to become available.
-	StateSourcePending = tftype.TerraformOperatorState("SOURCE_PENDING")
+	StateSourcePending = tfv1.TerraformOperatorState("SOURCE_PENDING")
 	// StateProviderConfigPending means the controller is waiting for the credentials Secret to become available.
-	StateProviderConfigPending = tftype.TerraformOperatorState("PROVIDER_PENDING")
+	StateProviderConfigPending = tfv1.TerraformOperatorState("PROVIDER_PENDING")
 	// StateTFPlanPending means the controller is waiting for tfplan object.
-	StateTFPlanPending = tftype.TerraformOperatorState("TFPLAN_PENDING")
+	StateTFPlanPending = tfv1.TerraformOperatorState("TFPLAN_PENDING")
 	// StateTFInputPending means the controller is waiting for one or more tfapply objects.
-	StateTFInputPending = tftype.TerraformOperatorState("TFINPUT_PENDING")
+	StateTFInputPending = tfv1.TerraformOperatorState("TFINPUT_PENDING")
 	// StateTFVarsFromPending means the controller is waiting to read tfvars from another object.
-	StateTFVarsFromPending = tftype.TerraformOperatorState("TFVARSFROM_PENDING")
+	StateTFVarsFromPending = tfv1.TerraformOperatorState("TFVARSFROM_PENDING")
 	// StatePodRunning means the controller is waiting for the terraform pod to complete.
-	StatePodRunning = tftype.TerraformOperatorState("POD_RUNNING")
+	StatePodRunning = tfv1.TerraformOperatorState("POD_RUNNING")
 	// StateRetry means a pod has failed and is being retried up to MaxAttempts times.
-	StateRetry = tftype.TerraformOperatorState("POD_RETRY")
+	StateRetry = tfv1.TerraformOperatorState("POD_RETRY")
 )
 
 // ParentType represents the strign mapping to the possible parent types in the const below.
@@ -45,14 +45,14 @@ const (
 
 // SyncRequest describes the payload from the CompositeController hook
 type SyncRequest struct {
-	Parent   tftype.Terraform  `json:"parent"`
+	Parent   tfv1.Terraform    `json:"parent"`
 	Children TerraformChildren `json:"children"`
 }
 
 // SyncResponse is the CompositeController response structure.
 type SyncResponse struct {
-	Status   tftype.TerraformOperatorStatus `json:"status"`
-	Children []interface{}                  `json:"children"`
+	Status   tfv1.TerraformOperatorStatus `json:"status"`
+	Children []interface{}                `json:"children"`
 }
 
 // TerraformChildren is the children definition passed by the CompositeController request for the Terraform controller.
@@ -98,10 +98,10 @@ type TerraformSpecCredentials struct {
 
 // TerraformConfigSourceData is the structure of all of the extracted config sources used by the Terraform Pod.
 type TerraformConfigSourceData struct {
-	ConfigMapHashes    map[string]tftype.ConfigMapHash
-	ConfigMapKeys      tftype.ConfigMapKeys
-	GCSObjects         tftype.GCSObjects
-	EmbeddedConfigMaps tftype.EmbeddedConfigMaps
+	ConfigMapHashes    map[string]tfv1.ConfigMapHash
+	ConfigMapKeys      tfv1.ConfigMapKeys
+	GCSObjects         tfv1.GCSObjects
+	EmbeddedConfigMaps tfv1.EmbeddedConfigMaps
 }
 
 // ConfigMapSourceData is an internal structure for mapping config map keys to strings and performing validation and hashing.

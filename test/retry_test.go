@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func testRetryTF(t *testing.T, kind TFKind, name, region string) {
+func testRetryTF(t *testing.T, kind TFKind, name, region string) string {
 	embeddedSpec := helperLoadBytes(t, defaultTFSourcePath)
 	tf := testMakeTF(t, tfSpecData{
 		Kind:            kind,
@@ -18,12 +18,18 @@ func testRetryTF(t *testing.T, kind TFKind, name, region string) {
 	t.Log(tf)
 	testApply(t, namespace, tf)
 	testWaitTF(t, kind, namespace, name)
-	defer testDelete(t, namespace, tf)
+	return tf
 }
 
 func TestRetry(t *testing.T) {
 	name := "tf-test-retry"
 
-	testRetryTF(t, TFKindApply, name, "mars")
-	testRetryTF(t, TFKindDestroy, name, "us-west1")
+	tfapply := testRetryTF(t, TFKindApply, name, "mars")
+	defer testDelete(t, namespace, tfapply)
+
+	tf := testGetTF(t, TFKindApply, namespace, name)
+	tf.VerifyOutputVars(t)
+
+	tfdestroy := testRetryTF(t, TFKindDestroy, name, "us-west1")
+	defer testDelete(t, namespace, tfdestroy)
 }

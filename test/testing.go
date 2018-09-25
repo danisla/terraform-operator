@@ -33,13 +33,32 @@ type tfSpecData struct {
 	TFPlan                   string
 }
 
+type TerraformOutputVar struct {
+	Name      string `json:"name,omitempty"`
+	Sensitive bool   `json:"sensitive,omitempty"`
+	Type      string `json:"type,omitempty"`
+	Value     string `json:"value,omitempty"`
+}
+
 type Terraform struct {
 	Status TerraformStatus `json:"status"`
 }
 
 type TerraformStatus struct {
-	PodName   string `json:"podName"`
-	PodStatus string `json:"podStatus"`
+	PodName   string               `json:"podName"`
+	PodStatus string               `json:"podStatus"`
+	Outputs   []TerraformOutputVar `json:"outputs,omitempty"`
+}
+
+func (tf *Terraform) VerifyOutputVars(t *testing.T) {
+	// Verify outputs in status.
+	allFound := len(tf.Status.Outputs) > 0
+	for _, v := range tf.Status.Outputs {
+		if v.Name != "project" && v.Name != "region" && v.Name != "zones" && v.Name != "metadata_key" && v.Name != "metadata_value" {
+			allFound = false
+		}
+	}
+	assert(t, allFound, "Incomplete output vars found in status.")
 }
 
 const (

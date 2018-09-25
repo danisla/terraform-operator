@@ -138,61 +138,48 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 		switch cStatus.Name {
 		case TERRAFORM_CONTAINER_NAME:
 
+			// Populate status.TFPlan from completed pod annotation.
+			if plan, ok := currPod.Annotations["terraform-plan"]; ok == true {
+				status.TFPlan = plan
+
+				// Parse the plan
+				summary, err := parseTerraformPlan(plan)
+				if err != nil {
+					parent.Log("ERROR", "Failed to parse plan: %s, %v", plan, err)
+					condition.Reason = "Internal error"
+					return condition.Status
+				}
+
+				status.TFPlanDiff = &summary
+
+				newStatus = tfv1.ConditionTrue
+			}
+
+			// Populate status.TFOutput map from completed pod annotation.
+			if output, ok := currPod.Annotations["terraform-output"]; ok == true {
+				outputVars, err := makeOutputVars(output)
+				if err != nil {
+					parent.Log("ERROR", "Pod/%s: Failed to parse output vars: %v", podName, err)
+					condition.Reason = "Internal error"
+					return condition.Status
+				}
+				status.TFOutput = &outputVars
+
+				// Create Secret with output var map
+				secretName := fmt.Sprintf("%s-tfapply-outputs", parent.GetName())
+				secret := makeOutputVarsSecret(secretName, parent.GetNamespace(), outputVars)
+				children.claimChildAndGetCurrent(secret, desiredChildren)
+				status.TFOutputSecret = secret.GetName()
+
+				newStatus = tfv1.ConditionTrue
+			}
+
 			switch podStatus.Phase {
 			case corev1.PodSucceeded:
 				// Passed
 				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusPassed)
 				status.RetryCount = 0
 				status.RetryNextAt = ""
-
-				// Extract terraform plan path from annotation.
-				switch parent.GetTFKind() {
-				case tfv1.TFKindPlan:
-					// Populate status.TFPlan from completed pod annotation.
-					if plan, ok := currPod.Annotations["terraform-plan"]; ok == true {
-						status.TFPlan = plan
-
-						// Parse the plan
-						summary, err := parseTerraformPlan(plan)
-						if err != nil {
-							parent.Log("ERROR", "Failed to parse plan: %s, %v", plan, err)
-							condition.Reason = "Internal error"
-							return condition.Status
-						}
-
-						status.TFPlanDiff = &summary
-
-						newStatus = tfv1.ConditionTrue
-
-					} else {
-						parent.Log("ERROR", "Pod/%s is missing terraform-plan annotation", podName)
-						condition.Reason = "Internal error"
-						return condition.Status
-					}
-				case tfv1.TFKindApply:
-					// Populate status.TFOutput map from completed pod annotation.
-					if output, ok := currPod.Annotations["terraform-output"]; ok == true {
-						outputVars, err := makeOutputVars(output)
-						if err != nil {
-							parent.Log("ERROR", "Pod/%s: Failed to parse output vars: %v", podName, err)
-							condition.Reason = "Internal error"
-							return condition.Status
-						}
-						status.TFOutput = outputVars
-
-						// Create Secret with output var map
-						secretName := fmt.Sprintf("%s-tfapply-outputs", parent.GetName())
-						secret := makeOutputVarsSecret(secretName, parent.GetNamespace(), outputVars)
-						children.claimChildAndGetCurrent(secret, desiredChildren)
-						status.TFOutputSecret = secret.GetName()
-
-						newStatus = tfv1.ConditionTrue
-					} else {
-						parent.Log("ERROR", "Pod/%s is missing terraform-output annotation", podName)
-						condition.Reason = "Internal error"
-						return condition.Status
-					}
-				}
 
 			case corev1.PodFailed:
 				// Failed
@@ -280,7 +267,7 @@ func getPodMaxAttempts(parent *tfv1.Terraform) int32 {
 	return maxAttempts
 }
 
-func makeOutputVars(data string) (*[]tfv1.TerraformOutputVar, error) {
+func makeOutputVars(data string) ([]tfv1.TerraformOutputVar, error) {
 	var outputVarsMap map[string]tfv1.TerraformOutputVar
 	err := json.Unmarshal([]byte(data), &outputVarsMap)
 	if err != nil {
@@ -298,5 +285,5 @@ func makeOutputVars(data string) (*[]tfv1.TerraformOutputVar, error) {
 		v.Name = k
 		outputVars = append(outputVars, v)
 	}
-	return &outputVars, err
+	return outputVars, err
 }

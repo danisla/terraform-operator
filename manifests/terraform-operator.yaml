@@ -72,6 +72,10 @@ spec:
     resource: configmaps
     updateStrategy:
       method: InPlace
+  - apiVersion: v1
+    resource: secrets
+    updateStrategy:
+      method: InPlace
   hooks:
     sync:
       webhook:
