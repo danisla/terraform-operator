@@ -172,20 +172,6 @@ func (parent *Terraform) GetConditionOrder() []TerraformConditionType {
 		}
 
 		if parent.Spec != nil {
-			// Config source conditional on spec for config.
-			// if c == ConditionTypeTerraformConfigSourceReady {
-			// 	found := false
-			// 	for _, s := range parent.Spec.Sources {
-			// 		if s.ConfigMap != nil || s.TFApply != "" || s.TFPlan != "" {
-			// 			found = true
-			// 			break
-			// 		}
-			// 	}
-			// 	if found {
-			// 		continue
-			// 	}
-			// }
-
 			// Inputs conditional on spec for inputs.
 			if c == ConditionTypeTerraformInputsReady && (parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
 				continue

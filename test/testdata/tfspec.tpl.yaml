@@ -11,26 +11,50 @@ spec:
   - name: google
     secretName: {{.GoogleProviderSecretName}}
   sources:
+  {{- if .ConfigMapSources }}
+  # ConfigMap sources
   {{- range .ConfigMapSources }}
   - configMap:
       name: {{ . }}
     trigger: true
   {{- end }}
-{{- range .EmbeddedSources }}
+  {{- end }}
+  
+  {{- if .EmbeddedSources }}
+  # Embedded sources
+  {{- range .EmbeddedSources }}
   - embedded: |-
 {{ . | indent 6 }}
   {{- end }}
+  {{- end }}
+  
+  {{- if .TFSources }}
+  # TF Sources
   {{- range .TFSources }}
   - tfplan: {{ .TFPlan }}
     tfapply: {{ .TFApply }}
   {{- end }}
+  {{- end }}
+  
   {{- if .TFPlan }}
+  # Input TF plan
   tfplan: {{ .TFPlan }}
   {{- end }}
-  {{- if .TFVarsMap }}
+  
+  {{- if .TFVars }}
+  # TFVars
   tfvars:
-  {{- range $k, $v := .TFVarsMap}}
+  {{- range $k, $v := .TFVars}}
   - name: {{ $k }}
     value: {{ $v }}
-  {{- end}}
+  {{- end }}
+  {{- end }}
+  
+  {{- if .TFVarsFrom }}
+  # TFVarsFrom
+  {{- range .TFVarsFrom }}
+  tfvarsFrom:
+  - tfplan: {{ .TFPlan }}
+    tfapply: {{ .TFApply }}
+  {{- end }}
   {{- end }}

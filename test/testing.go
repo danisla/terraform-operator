@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type tfSpecData struct {
@@ -29,8 +30,9 @@ type tfSpecData struct {
 	BackendBucket            string
 	BucketPrefix             string
 	GoogleProviderSecretName string
-	TFVarsMap                map[string]string
+	TFVars                   map[string]string
 	TFPlan                   string
+	TFVarsFrom               []TFSource
 }
 
 type TFSource struct {
@@ -50,10 +52,42 @@ type Terraform struct {
 }
 
 type TerraformStatus struct {
-	PodName   string               `json:"podName"`
-	PodStatus string               `json:"podStatus"`
-	Outputs   []TerraformOutputVar `json:"outputs,omitempty"`
+	PodName    string               `json:"podName"`
+	PodStatus  string               `json:"podStatus"`
+	Outputs    []TerraformOutputVar `json:"outputs,omitempty"`
+	Conditions []TerraformCondition `json:"conditions,omitempty"`
 }
+
+type ConditionType string
+
+const (
+	ConditionTypeSpecFromReady       ConditionType = "SpecFromReady"
+	ConditionTypeProviderConfigReady ConditionType = "ProviderConfigReady"
+	ConditionTypeSourceReady         ConditionType = "ConfigSourceReady"
+	ConditionTypeTFInputsReady       ConditionType = "TFInputsReady"
+	ConditionTypeVarsFromReady       ConditionType = "TFVarsFromReady"
+	ConditionTypePlanReady           ConditionType = "TFPlanReady"
+	ConditionTypePodComplete         ConditionType = "TFPodComplete"
+	ConditionTypeReady               ConditionType = "Ready"
+)
+
+// TerraformCondition defines the format for a status condition element.
+type TerraformCondition struct {
+	Type               ConditionType   `json:"type"`
+	Status             ConditionStatus `json:"status"`
+	LastProbeTime      metav1.Time     `json:"lastProbeTime,omitempty"`
+	LastTransitionTime metav1.Time     `json:"lastTransitionTime,omitempty"`
+	Reason             string          `json:"reason,omitempty"`
+	Message            string          `json:"message,omitempty"`
+}
+
+type ConditionStatus string
+
+const (
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
+)
 
 func (tf *Terraform) VerifyOutputVars(t *testing.T) {
 	// Verify outputs in status.
@@ -64,6 +98,22 @@ func (tf *Terraform) VerifyOutputVars(t *testing.T) {
 		}
 	}
 	assert(t, allFound, "Incomplete output vars found in status.")
+}
+
+func (tf *Terraform) VerifyConditions(t *testing.T, conditions []ConditionType) {
+	assert(t, len(conditions) != len(tf.Status.Conditions), "Different number of conditions found: %d, expected: %d", len(tf.Status.Conditions), len(conditions))
+	for _, condition := range conditions {
+		found := false
+		for _, c := range tf.Status.Conditions {
+			if c.Type == condition {
+				found = true
+				assert(t, c.Status == "True", "condition status not True: %s", c.Type)
+				t.Logf("Condition %s PASSED", condition)
+				break
+			}
+		}
+		assert(t, found, "Condition not found in status: %s", condition)
+	}
 }
 
 const (
@@ -230,10 +280,11 @@ func testGetTF(t *testing.T, kind TFKind, namespace, name string) Terraform {
 	return tf
 }
 
-func testWaitTF(t *testing.T, kind TFKind, namespace, name string) {
+func testWaitTF(t *testing.T, kind TFKind, namespace, name string) Terraform {
+	var tf Terraform
 	maxTime := time.Now().Add(time.Minute * time.Duration(timeout))
 	for time.Now().Before(maxTime) {
-		tf := testGetTF(t, kind, namespace, name)
+		tf = testGetTF(t, kind, namespace, name)
 		if tf.Status.PodStatus == "COMPLETED" {
 			fmt.Printf("%s/%s pod: %s %s\n", kind, name, tf.Status.PodName, tf.Status.PodStatus)
 			break
@@ -242,6 +293,7 @@ func testWaitTF(t *testing.T, kind TFKind, namespace, name string) {
 			time.Sleep(time.Second * time.Duration(5))
 		}
 	}
+	return tf
 }
 
 func testVerifyOutputVars(t *testing.T, namespace, name string) {

@@ -151,8 +151,6 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 				}
 
 				status.TFPlanDiff = &summary
-
-				newStatus = tfv1.ConditionTrue
 			}
 
 			// Populate status.TFOutput map from completed pod annotation.
@@ -170,8 +168,6 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 				secret := makeOutputVarsSecret(secretName, parent.GetNamespace(), outputVars)
 				children.claimChildAndGetCurrent(secret, desiredChildren)
 				status.TFOutputSecret = secret.GetName()
-
-				newStatus = tfv1.ConditionTrue
 			}
 
 			switch podStatus.Phase {
@@ -179,6 +175,7 @@ func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraf
 				// Passed
 				setFinalPodStatus(parent, status, cStatus, currPod, tfv1.PodStatusPassed)
 				status.RetryNextAt = ""
+				newStatus = tfv1.ConditionTrue
 
 			case corev1.PodFailed:
 				// Failed

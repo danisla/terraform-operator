@@ -14,7 +14,7 @@ func testMakeRetryTF(t *testing.T, kind TFKind, name, region string) string {
 		Kind:            kind,
 		Name:            name,
 		EmbeddedSources: []string{string(embeddedSpec)},
-		TFVarsMap: map[string]string{
+		TFVars: map[string]string{
 			"metadata_key": name,
 			"region":       region,
 		},
