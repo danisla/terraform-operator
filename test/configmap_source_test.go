@@ -19,11 +19,10 @@ func testConfigMapSourceTF(t *testing.T, kind TFKind, name, cmName string) {
 	testApply(t, namespace, spec)
 	tf := testWaitTF(t, kind, namespace, name)
 	tf.VerifyConditions(t, []ConditionType{
-		ConditionTypePodComplete,
-		ConditionTypeProviderConfigReady,
-		ConditionTypeSourceReady,
+		ConditionPodComplete,
+		ConditionProviderConfigReady,
+		ConditionSourceReady,
 	})
-
 }
 
 // TestConfigMapSource runs a plan,apply,destroy in sequence using a configmap source.
@@ -55,10 +54,15 @@ func TestConfigMapSourceApplyPlan(t *testing.T) {
 		Name:             name,
 		ConfigMapSources: []string{name},
 	})
+	defer testDelete(t, namespace, tfplan)
 	t.Log(tfplan)
 	testApply(t, namespace, tfplan)
-	testWaitTF(t, TFKindPlan, namespace, name)
-	defer testDelete(t, namespace, tfplan)
+	tf := testWaitTF(t, TFKindPlan, namespace, name)
+	tf.VerifyConditions(t, []ConditionType{
+		ConditionPodComplete,
+		ConditionProviderConfigReady,
+		ConditionSourceReady,
+	})
 
 	// Create tfapply
 	tfapply := testMakeTF(t, tfSpecData{

@@ -7,7 +7,7 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-func reconcileSpecFromReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, *tfv1.TerraformSpec) {
+func reconcileSpecFromReady(condition *tfv1.Condition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, *tfv1.TerraformSpec) {
 	var spec tfv1.TerraformSpec
 	newStatus := tfv1.ConditionFalse
 

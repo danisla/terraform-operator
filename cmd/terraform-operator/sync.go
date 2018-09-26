@@ -23,8 +23,8 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 	// Verify required top level fields.
 	if err = parent.Spec.Verify(); err != nil {
 		parent.Log("ERROR", "Invalid spec: %v", err)
-		status.Conditions = append(status.Conditions, tfv1.TerraformCondition{
-			Type:               tfv1.ConditionTypeTerraformReady,
+		status.Conditions = append(status.Conditions, tfv1.Condition{
+			Type:               tfv1.ConditionReady,
 			Status:             tfv1.ConditionFalse,
 			LastProbeTime:      tNow,
 			LastTransitionTime: tNow,
@@ -63,35 +63,35 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 		}
 
 		switch conditionType {
-		case tfv1.ConditionTypeTerraformSpecFromReady:
+		case tfv1.ConditionSpecFromReady:
 			newStatus, spec = reconcileSpecFromReady(condition, parent, &status, children, &desiredChildren)
 			if spec != nil {
 				parent.Spec = spec
 			}
 
-		case tfv1.ConditionTypeTerraformProviderConfigReady:
+		case tfv1.ConditionProviderConfigReady:
 			newStatus, providerConfigKeys = reconcileProviderConfigReady(condition, parent, &status, children, &desiredChildren)
 
-		case tfv1.ConditionTypeTerraformConfigSourceReady:
+		case tfv1.ConditionConfigSourceReady:
 			newStatus, sourceData = reconcileConfigSourceReady(condition, parent, &status, children, &desiredChildren)
 
-		case tfv1.ConditionTypeTerraformInputsReady:
+		case tfv1.ConditionInputsReady:
 			newStatus, tfInputVars = reconcileTFInputsReady(condition, parent, &status, children, &desiredChildren)
 
-		case tfv1.ConditionTypeTerraformVarsFromReady:
+		case tfv1.ConditionVarsFromReady:
 			newStatus, tfVarsFrom = reconcileTFVarsFromReady(condition, parent, &status, children, &desiredChildren)
 
-		case tfv1.ConditionTypeTerraformPlanReady:
+		case tfv1.ConditionPlanReady:
 			newStatus, tfplanfile = reconcileTFPlanReady(condition, parent, &status, children, &desiredChildren)
 
-		case tfv1.ConditionTypeTerraformPodComplete:
+		case tfv1.ConditionPodComplete:
 			newStatus = reconcileTFPodReady(condition, parent, &status, children, &desiredChildren, &providerConfigKeys, &sourceData, &tfInputVars, &tfVarsFrom, tfplanfile)
 
-		case tfv1.ConditionTypeTerraformReady:
+		case tfv1.ConditionReady:
 			newStatus = tfv1.ConditionTrue
 			notReady := []string{}
 			for _, c := range conditionOrder {
-				if c != tfv1.ConditionTypeTerraformReady && conditions[c].Status != tfv1.ConditionTrue {
+				if c != tfv1.ConditionReady && conditions[c].Status != tfv1.ConditionTrue {
 					notReady = append(notReady, string(c))
 					newStatus = tfv1.ConditionFalse
 				}
@@ -110,7 +110,7 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 	}
 
 	// Set the ordered condition status from the conditions map.
-	newConditions := make([]tfv1.TerraformCondition, 0)
+	newConditions := make([]tfv1.Condition, 0)
 	for _, c := range parent.GetConditionOrder() {
 		newConditions = append(newConditions, *conditions[c])
 	}

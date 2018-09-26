@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func reconcileTFPodReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}, providerConfigKeys *ProviderConfigKeys, sourceData *TerraformConfigSourceData, tfInputVars *TerraformInputVars, tfVarsFrom *TerraformInputVars, tfplanfile string) tfv1.ConditionStatus {
+func reconcileTFPodReady(condition *tfv1.Condition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}, providerConfigKeys *ProviderConfigKeys, sourceData *TerraformConfigSourceData, tfInputVars *TerraformInputVars, tfVarsFrom *TerraformInputVars, tfplanfile string) tfv1.ConditionStatus {
 	newStatus := tfv1.ConditionFalse
 	reasons := make([]string, 0)
 

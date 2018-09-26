@@ -9,7 +9,7 @@ import (
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 )
 
-func reconcileConfigSourceReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, TerraformConfigSourceData) {
+func reconcileConfigSourceReady(condition *tfv1.Condition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, TerraformConfigSourceData) {
 	newStatus := tfv1.ConditionFalse
 	allFound := true
 	reasons := make([]string, 0)

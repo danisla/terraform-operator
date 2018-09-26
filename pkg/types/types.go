@@ -120,8 +120,8 @@ func (parent *Terraform) GetSig() string {
 }
 
 // MakeConditions initializes a new AppDBConditions struct
-func (parent *Terraform) MakeConditions(initTime metav1.Time) TerraformConditions {
-	conditions := make(map[TerraformConditionType]*TerraformCondition, 0)
+func (parent *Terraform) MakeConditions(initTime metav1.Time) Conditions {
+	conditions := make(map[ConditionType]*Condition, 0)
 
 	// Extract existing conditions from status and copy to conditions map for easier lookup.
 	for _, c := range parent.GetConditionOrder() {
@@ -139,7 +139,7 @@ func (parent *Terraform) MakeConditions(initTime metav1.Time) TerraformCondition
 		}
 		if found == false {
 			// Initialize condition with unknown state
-			conditions[c] = &TerraformCondition{
+			conditions[c] = &Condition{
 				Type:               c,
 				Status:             ConditionUnknown,
 				LastProbeTime:      initTime,
@@ -153,37 +153,37 @@ func (parent *Terraform) MakeConditions(initTime metav1.Time) TerraformCondition
 
 // GetConditionOrder returns an ordered slice of the conditions as the should appear in the status.
 // This is dependent on which fields are provided in the parent spec.
-func (parent *Terraform) GetConditionOrder() []TerraformConditionType {
-	desiredOrder := []TerraformConditionType{
-		ConditionTypeTerraformSpecFromReady,
-		ConditionTypeTerraformProviderConfigReady,
-		ConditionTypeTerraformConfigSourceReady,
-		ConditionTypeTerraformInputsReady,
-		ConditionTypeTerraformVarsFromReady,
-		ConditionTypeTerraformPlanReady,
-		ConditionTypeTerraformPodComplete,
-		ConditionTypeTerraformReady,
+func (parent *Terraform) GetConditionOrder() []ConditionType {
+	desiredOrder := []ConditionType{
+		ConditionSpecFromReady,
+		ConditionProviderConfigReady,
+		ConditionConfigSourceReady,
+		ConditionInputsReady,
+		ConditionVarsFromReady,
+		ConditionPlanReady,
+		ConditionPodComplete,
+		ConditionReady,
 	}
 
-	conditionOrder := make([]TerraformConditionType, 0)
+	conditionOrder := make([]ConditionType, 0)
 	for _, c := range desiredOrder {
-		if c == ConditionTypeTerraformSpecFromReady && parent.SpecFrom == nil {
+		if c == ConditionSpecFromReady && parent.SpecFrom == nil {
 			continue
 		}
 
 		if parent.Spec != nil {
 			// Inputs conditional on spec for inputs.
-			if c == ConditionTypeTerraformInputsReady && (parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
+			if c == ConditionInputsReady && (parent.Spec.TFInputs == nil || len(*parent.Spec.TFInputs) == 0) {
 				continue
 			}
 
 			// VarsFrom conditional on spec for vars from.
-			if c == ConditionTypeTerraformVarsFromReady && (parent.Spec.TFVarsFrom == nil || len(*parent.Spec.TFVarsFrom) == 0) {
+			if c == ConditionVarsFromReady && (parent.Spec.TFVarsFrom == nil || len(*parent.Spec.TFVarsFrom) == 0) {
 				continue
 			}
 
 			// TFPlan conditional on spec for tfplan.
-			if c == ConditionTypeTerraformPlanReady && parent.Spec.TFPlan == "" {
+			if c == ConditionPlanReady && parent.Spec.TFPlan == "" {
 				continue
 			}
 		}
@@ -209,17 +209,17 @@ type TerraformOperatorStatus struct {
 	RetryNextAt    string                         `json:"retryNextAt,omitempty"`
 	Workspace      string                         `json:"workspace,omitempty"`
 	StateFile      string                         `json:"stateFile,omitempty"`
-	Conditions     []TerraformCondition           `json:"conditions,omitempty"`
+	Conditions     []Condition                    `json:"conditions,omitempty"`
 }
 
-// TerraformCondition defines the format for a status condition element.
-type TerraformCondition struct {
-	Type               TerraformConditionType `json:"type"`
-	Status             ConditionStatus        `json:"status"`
-	LastProbeTime      metav1.Time            `json:"lastProbeTime,omitempty"`
-	LastTransitionTime metav1.Time            `json:"lastTransitionTime,omitempty"`
-	Reason             string                 `json:"reason,omitempty"`
-	Message            string                 `json:"message,omitempty"`
+// Condition defines the format for a status condition element.
+type Condition struct {
+	Type               ConditionType   `json:"type"`
+	Status             ConditionStatus `json:"status"`
+	LastProbeTime      metav1.Time     `json:"lastProbeTime,omitempty"`
+	LastTransitionTime metav1.Time     `json:"lastTransitionTime,omitempty"`
+	Reason             string          `json:"reason,omitempty"`
+	Message            string          `json:"message,omitempty"`
 }
 
 type ConditionStatus string
@@ -230,51 +230,51 @@ const (
 	ConditionUnknown ConditionStatus = "Unknown"
 )
 
-// TerraformConditions is a map of the condition types to their condition.
-type TerraformConditions map[TerraformConditionType]*TerraformCondition
+// Conditions is a map of the condition types to their condition.
+type Conditions map[ConditionType]*Condition
 
-// TerraformConditionType is a valid value for TerraformCondition.Type
-type TerraformConditionType string
+// ConditionType is a valid value for TerraformCondition.Type
+type ConditionType string
 
 // The condition type constants listed below are in the order they should roughly happen and in the order they
 // exist in the status.conditions list. This gives visibility to what the operator is doing.
 // Some conditions can be satisfied in parallel with others.
 const (
-	// ConditionTypeTerraformSpecFromReady is True when the given specFrom terraform resource is ready.
-	ConditionTypeTerraformSpecFromReady TerraformConditionType = "SpecFromReady"
-	// ConditionTypeTerraformProviderConfigReady is True when the provider config is available and ready.
-	ConditionTypeTerraformProviderConfigReady TerraformConditionType = "ProviderConfigReady"
-	// ConditionTypeTerraformConfigSourceReady is True when all config sources are ready.
-	ConditionTypeTerraformConfigSourceReady TerraformConditionType = "ConfigSourceReady"
-	// ConditionTypeTerraformInputsReady is True when all var inputs are ready.
-	ConditionTypeTerraformInputsReady TerraformConditionType = "TFInputsReady"
-	// ConditionTypeTerraformVarsFromReady is True when all vars from sources are ready.
-	ConditionTypeTerraformVarsFromReady TerraformConditionType = "TFVarsFromReady"
-	// ConditionTypeTerraformPlanReady is True when a given tfplan source file path is ready.
-	ConditionTypeTerraformPlanReady TerraformConditionType = "TFPlanReady"
-	// ConditionTypeTerraformPodComplete is True when the terraform pod has completed successfully.
-	ConditionTypeTerraformPodComplete TerraformConditionType = "TFPodComplete"
-	// ConditionTypeTerraformReady is True when all prior conditions are ready.
-	ConditionTypeTerraformReady TerraformConditionType = "Ready"
+	// ConditionSpecFromReady is True when the given specFrom terraform resource is ready.
+	ConditionSpecFromReady ConditionType = "SpecFromReady"
+	// ConditionProviderConfigReady is True when the provider config is available and ready.
+	ConditionProviderConfigReady ConditionType = "ProviderConfigReady"
+	// ConditionConfigSourceReady is True when all config sources are ready.
+	ConditionConfigSourceReady ConditionType = "ConfigSourceReady"
+	// ConditionInputsReady is True when all var inputs are ready.
+	ConditionInputsReady ConditionType = "TFInputsReady"
+	// ConditionVarsFromReady is True when all vars from sources are ready.
+	ConditionVarsFromReady ConditionType = "TFVarsFromReady"
+	// ConditionPlanReady is True when a given tfplan source file path is ready.
+	ConditionPlanReady ConditionType = "TFPlanReady"
+	// ConditionPodComplete is True when the terraform pod has completed successfully.
+	ConditionPodComplete ConditionType = "TFPodComplete"
+	// ConditionReady is True when all prior conditions are ready.
+	ConditionReady ConditionType = "Ready"
 )
 
 // GetDependencies returns a map of condition type names to an ordered slice of dependent condition types.
-func (conditionType *TerraformConditionType) GetDependencies() []TerraformConditionType {
+func (conditionType *ConditionType) GetDependencies() []ConditionType {
 	switch *conditionType {
-	case ConditionTypeTerraformPodComplete:
-		return []TerraformConditionType{
-			ConditionTypeTerraformProviderConfigReady,
-			ConditionTypeTerraformConfigSourceReady,
-			ConditionTypeTerraformInputsReady,
-			ConditionTypeTerraformVarsFromReady,
-			ConditionTypeTerraformPlanReady,
+	case ConditionPodComplete:
+		return []ConditionType{
+			ConditionProviderConfigReady,
+			ConditionConfigSourceReady,
+			ConditionInputsReady,
+			ConditionVarsFromReady,
+			ConditionPlanReady,
 		}
 	}
-	return []TerraformConditionType{}
+	return []ConditionType{}
 }
 
 // CheckConditions verifies that all given conditions have been met for the given conditionType on the receiving conditions.
-func (conditions TerraformConditions) CheckConditions(conditionType TerraformConditionType) error {
+func (conditions Conditions) CheckConditions(conditionType ConditionType) error {
 	waiting := []string{}
 	for _, t := range conditionType.GetDependencies() {
 		condition := conditions[t]

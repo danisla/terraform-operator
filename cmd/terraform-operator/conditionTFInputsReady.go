@@ -7,7 +7,7 @@ import (
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 )
 
-func reconcileTFInputsReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, TerraformInputVars) {
+func reconcileTFInputsReady(condition *tfv1.Condition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, TerraformInputVars) {
 	newStatus := tfv1.ConditionFalse
 	allFound := true
 	reasons := make([]string, 0)

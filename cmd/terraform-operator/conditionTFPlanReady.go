@@ -6,7 +6,7 @@ import (
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 )
 
-func reconcileTFPlanReady(condition *tfv1.TerraformCondition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, string) {
+func reconcileTFPlanReady(condition *tfv1.Condition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, string) {
 	var tfplanfile string
 	var tfplan tfv1.Terraform
 	var err error

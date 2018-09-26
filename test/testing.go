@@ -20,6 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type tfSpecFromData struct {
+	Kind      TFKind
+	Name      string
+	TFPlan    string
+	TFApply   string
+	TFDestroy string
+}
+
 type tfSpecData struct {
 	Kind                     TFKind
 	Name                     string
@@ -55,24 +63,24 @@ type TerraformStatus struct {
 	PodName    string               `json:"podName"`
 	PodStatus  string               `json:"podStatus"`
 	Outputs    []TerraformOutputVar `json:"outputs,omitempty"`
-	Conditions []TerraformCondition `json:"conditions,omitempty"`
+	Conditions []Condition          `json:"conditions,omitempty"`
 }
 
 type ConditionType string
 
 const (
-	ConditionTypeSpecFromReady       ConditionType = "SpecFromReady"
-	ConditionTypeProviderConfigReady ConditionType = "ProviderConfigReady"
-	ConditionTypeSourceReady         ConditionType = "ConfigSourceReady"
-	ConditionTypeTFInputsReady       ConditionType = "TFInputsReady"
-	ConditionTypeVarsFromReady       ConditionType = "TFVarsFromReady"
-	ConditionTypePlanReady           ConditionType = "TFPlanReady"
-	ConditionTypePodComplete         ConditionType = "TFPodComplete"
-	ConditionTypeReady               ConditionType = "Ready"
+	ConditionSpecFromReady       ConditionType = "SpecFromReady"
+	ConditionProviderConfigReady ConditionType = "ProviderConfigReady"
+	ConditionSourceReady         ConditionType = "ConfigSourceReady"
+	ConditionTFInputsReady       ConditionType = "TFInputsReady"
+	ConditionVarsFromReady       ConditionType = "TFVarsFromReady"
+	ConditionPlanReady           ConditionType = "TFPlanReady"
+	ConditionPodComplete         ConditionType = "TFPodComplete"
+	ConditionReady               ConditionType = "Ready"
 )
 
-// TerraformCondition defines the format for a status condition element.
-type TerraformCondition struct {
+// Condition defines the format for a status condition element.
+type Condition struct {
 	Type               ConditionType   `json:"type"`
 	Status             ConditionStatus `json:"status"`
 	LastProbeTime      metav1.Time     `json:"lastProbeTime,omitempty"`
