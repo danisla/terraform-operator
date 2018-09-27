@@ -5,7 +5,7 @@ import (
 )
 
 // TestSpecFromTFPlan verifies that a spec can be referenced from an existing TerraformPlan.
-func TestSpecFrom(t *testing.T) {
+func TestSpecFromTFPlan(t *testing.T) {
 	t.Parallel()
 
 	name := "tf-test-specfromplan"
@@ -38,18 +38,6 @@ func TestSpecFrom(t *testing.T) {
 	t.Log(tfapply)
 	testApply(t, namespace, tfapply)
 
-	// create a tfdestroy that uses the spec from the tfapply
-	// create in parallel to verify it waits properly.
-	tfdestroy := testMakeTFSpecFrom(t, tfSpecFromData{
-		Kind:         TFKindDestroy,
-		Name:         name,
-		TFApply:      name,
-		WaitForReady: true,
-	})
-	defer testDelete(t, namespace, tfdestroy)
-	t.Log(tfdestroy)
-	testApply(t, namespace, tfdestroy)
-
 	// Wait for the tfplan
 	tf := testWaitTF(t, TFKindPlan, namespace, name)
 	tf.VerifyConditions(t, []ConditionType{
@@ -69,13 +57,6 @@ func TestSpecFrom(t *testing.T) {
 		ConditionReady,
 	})
 
-	// Wait for the tfdestroy
-	tf = testWaitTF(t, TFKindDestroy, namespace, name)
-	tf.VerifyConditions(t, []ConditionType{
-		ConditionSpecFromReady,
-		ConditionProviderConfigReady,
-		ConditionSourceReady,
-		ConditionPodComplete,
-		ConditionReady,
-	})
+	// Create an verify tfdestroy
+	testConfigMapSourceTF(t, TFKindDestroy, name, name, true)
 }

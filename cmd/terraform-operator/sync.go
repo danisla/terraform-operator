@@ -56,6 +56,8 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 			// Recompute conditions now that we have the spec.
 			conditions = parent.MakeConditions(tNow)
 			conditionOrder = parent.GetConditionOrder()
+
+			conditions[tfv1.ConditionSpecFromReady] = condition
 		}
 
 		if condition.Status != newStatus {
