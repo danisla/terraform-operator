@@ -21,7 +21,7 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 	tNow := metav1.NewTime(time.Now())
 
 	// Verify required top level fields.
-	if err = parent.Spec.Verify(); err != nil {
+	if err = parent.Verify(); err != nil {
 		parent.Log("ERROR", "Invalid spec: %v", err)
 		status.Conditions = append(status.Conditions, tfv1.Condition{
 			Type:               tfv1.ConditionReady,
@@ -34,10 +34,6 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 		return &status, &desiredChildren, nil
 	}
 
-	// Map of condition types to conditions, converted to list of conditions after switch statement.
-	conditions := parent.MakeConditions(tNow)
-	conditionOrder := parent.GetConditionOrder()
-
 	// Variables shared by multiple conditions
 	var spec *tfv1.TerraformSpec
 	var providerConfigKeys ProviderConfigKeys
@@ -45,6 +41,37 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 	var tfInputVars TerraformInputVars
 	var tfVarsFrom TerraformInputVars
 	var tfplanfile string
+
+	// Map of condition types to conditions, converted to list of conditions after switch statement.
+	conditions := parent.MakeConditions(tNow)
+	conditionOrder := parent.GetConditionOrder()
+
+	// The specFrom condition can modify the condition order and dependencies, resolve this first.
+	if condition, ok := conditions[tfv1.ConditionSpecFromReady]; ok == true {
+		newStatus := condition.Status
+		newStatus, spec = reconcileSpecFromReady(condition, parent, &status, children, &desiredChildren)
+		if spec != nil {
+			parent.Spec = spec
+
+			// Recompute conditions now that we have the spec.
+			conditions = parent.MakeConditions(tNow)
+			conditionOrder = parent.GetConditionOrder()
+		}
+
+		if condition.Status != newStatus {
+			condition.LastTransitionTime = tNow
+			condition.Status = newStatus
+		}
+
+		// Short-circuit until specFrom condition is ready.
+		if condition.Status != tfv1.ConditionTrue {
+			// Set the ordered condition status from the conditions map.
+			status.Conditions = []tfv1.Condition{
+				*conditions[tfv1.ConditionSpecFromReady],
+			}
+			return &status, &desiredChildren, nil
+		}
+	}
 
 	// Reconcile each condition.
 	for _, conditionType := range conditionOrder {
@@ -63,12 +90,6 @@ func sync(parentType ParentType, parent *tfv1.Terraform, children *TerraformChil
 		}
 
 		switch conditionType {
-		case tfv1.ConditionSpecFromReady:
-			newStatus, spec = reconcileSpecFromReady(condition, parent, &status, children, &desiredChildren)
-			if spec != nil {
-				parent.Spec = spec
-			}
-
 		case tfv1.ConditionProviderConfigReady:
 			newStatus, providerConfigKeys = reconcileProviderConfigReady(condition, parent, &status, children, &desiredChildren)
 

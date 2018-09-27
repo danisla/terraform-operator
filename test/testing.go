@@ -21,11 +21,12 @@ import (
 )
 
 type tfSpecFromData struct {
-	Kind      TFKind
-	Name      string
-	TFPlan    string
-	TFApply   string
-	TFDestroy string
+	Kind         TFKind
+	Name         string
+	TFPlan       string
+	TFApply      string
+	TFDestroy    string
+	WaitForReady bool
 }
 
 type tfSpecData struct {
@@ -109,7 +110,7 @@ func (tf *Terraform) VerifyOutputVars(t *testing.T) {
 }
 
 func (tf *Terraform) VerifyConditions(t *testing.T, conditions []ConditionType) {
-	assert(t, len(conditions) != len(tf.Status.Conditions), "Different number of conditions found: %d, expected: %d", len(tf.Status.Conditions), len(conditions))
+	assert(t, len(conditions) == len(tf.Status.Conditions), "Different number of conditions found: %d, expected: %d", len(tf.Status.Conditions), len(conditions))
 	for _, condition := range conditions {
 		found := false
 		for _, c := range tf.Status.Conditions {
@@ -129,6 +130,7 @@ const (
 	defaultGoogleProviderSecret = "tf-provider-google"
 	defaultBucketPrefix         = "terraform"
 	defaultTFSpecFile           = "tfspec.tpl.yaml"
+	defaultTFSpecFromFile       = "tfspecfrom.tpl.yaml"
 	defaultTFSourcePath         = "tfsource.tf"
 )
 
@@ -210,6 +212,21 @@ func testMakeTF(t *testing.T, data tfSpecData) string {
 	}
 	if data.BucketPrefix == "" {
 		data.BucketPrefix = defaultBucketPrefix
+	}
+
+	var b bytes.Buffer
+	if err := tmpl.Execute(&b, data); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	return b.String()
+}
+
+func testMakeTFSpecFrom(t *testing.T, data tfSpecFromData) string {
+	templateSpec := helperLoadBytes(t, defaultTFSpecFromFile)
+	tmpl, err := template.New("tf.yaml").Funcs(template.FuncMap{"StringsJoin": strings.Join}).Funcs(sprig.TxtFuncMap()).Parse(string(templateSpec))
+	if err != nil {
+		t.Fatalf("err: %s", err)
 	}
 
 	var b bytes.Buffer

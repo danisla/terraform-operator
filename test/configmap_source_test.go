@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func testConfigMapSourceTF(t *testing.T, kind TFKind, name, cmName string) {
+func testConfigMapSourceTF(t *testing.T, kind TFKind, name, cmName string, delete bool) string {
 	spec := testMakeTF(t, tfSpecData{
 		Kind:             kind,
 		Name:             name,
@@ -13,7 +13,9 @@ func testConfigMapSourceTF(t *testing.T, kind TFKind, name, cmName string) {
 			"metadata_key": name,
 		},
 	})
-	defer testDelete(t, namespace, spec)
+	if delete {
+		defer testDelete(t, namespace, spec)
+	}
 
 	t.Log(spec)
 	testApply(t, namespace, spec)
@@ -22,7 +24,9 @@ func testConfigMapSourceTF(t *testing.T, kind TFKind, name, cmName string) {
 		ConditionPodComplete,
 		ConditionProviderConfigReady,
 		ConditionSourceReady,
+		ConditionReady,
 	})
+	return spec
 }
 
 // TestConfigMapSource runs a plan,apply,destroy in sequence using a configmap source.
@@ -34,9 +38,9 @@ func TestConfigMapSource(t *testing.T) {
 	testApplyTFSourceConfigMap(t, namespace, name)
 	defer testDeleteTFSourceConfigMap(t, namespace, name)
 
-	testConfigMapSourceTF(t, TFKindPlan, name, name)
-	testConfigMapSourceTF(t, TFKindApply, name, name)
-	testConfigMapSourceTF(t, TFKindDestroy, name, name)
+	testConfigMapSourceTF(t, TFKindPlan, name, name, true)
+	testConfigMapSourceTF(t, TFKindApply, name, name, true)
+	testConfigMapSourceTF(t, TFKindDestroy, name, name, true)
 }
 
 // TestConfigMapSourceApplyPlan runs a plan then an apply that uses the planfile on GCS.
@@ -62,6 +66,7 @@ func TestConfigMapSourceApplyPlan(t *testing.T) {
 		ConditionPodComplete,
 		ConditionProviderConfigReady,
 		ConditionSourceReady,
+		ConditionReady,
 	})
 
 	// Create tfapply
@@ -77,5 +82,5 @@ func TestConfigMapSourceApplyPlan(t *testing.T) {
 	defer testDelete(t, namespace, tfapply)
 
 	// Create tfdestroy
-	testConfigMapSourceTF(t, TFKindDestroy, name, name)
+	testConfigMapSourceTF(t, TFKindDestroy, name, name, true)
 }

@@ -4,11 +4,10 @@ import (
 	"fmt"
 
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
-	"github.com/jinzhu/copier"
 )
 
 func reconcileSpecFromReady(condition *tfv1.Condition, parent *tfv1.Terraform, status *tfv1.TerraformOperatorStatus, children *TerraformChildren, desiredChildren *[]interface{}) (tfv1.ConditionStatus, *tfv1.TerraformSpec) {
-	var spec tfv1.TerraformSpec
+	var spec *tfv1.TerraformSpec
 	newStatus := tfv1.ConditionFalse
 
 	// Wait for any specFrom resource.
@@ -31,14 +30,30 @@ func reconcileSpecFromReady(condition *tfv1.Condition, parent *tfv1.Terraform, s
 		if err != nil {
 			condition.Reason = fmt.Sprintf("Waiting for spec from: %s/%s", specFromType, specFromName)
 		} else {
-			copier.Copy(&spec, specFromTF.Spec)
-			newStatus = tfv1.ConditionTrue
-			condition.Reason = fmt.Sprintf("Using spec from: %s/%s", specFromType, specFromName)
+			// Wait for ready condition
+			if parent.SpecFrom.WaitForReady {
+				for _, c := range specFromTF.Status.Conditions {
+					if c.Type == tfv1.ConditionReady {
+						if c.Status == tfv1.ConditionTrue {
+							spec = specFromTF.Spec
+							newStatus = tfv1.ConditionTrue
+							condition.Reason = fmt.Sprintf("Using spec from: %s/%s", specFromType, specFromName)
+						} else {
+							condition.Reason = fmt.Sprintf("Waiting for %s/%s condition: %s", string(specFromType), specFromName, tfv1.ConditionReady)
+						}
+						break
+					}
+				}
+			} else {
+				spec = specFromTF.Spec
+				newStatus = tfv1.ConditionTrue
+				condition.Reason = fmt.Sprintf("Using spec from: %s/%s", specFromType, specFromName)
+			}
 		}
 	} else {
 		// Spec from parent.Spec
 		newStatus = tfv1.ConditionTrue
 	}
 
-	return newStatus, &spec
+	return newStatus, spec
 }

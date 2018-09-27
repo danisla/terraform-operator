@@ -73,29 +73,32 @@ func (parent *Terraform) Verify() error {
 	}
 
 	if parent.Spec != nil {
-		return parent.Spec.Verify()
-	}
+		if err := parent.Spec.Verify(); err == nil {
 
-	// Verify no cycles in TF sources
-	for _, s := range parent.Spec.Sources {
-		if s.TFApply != "" {
-			if s.TFApply == parent.GetName() && parent.GetTFKind() == TFKindApply {
-				return fmt.Errorf("source.tfapply %s/%s: CYCLE", parent.GetTFKind(), s.TFApply)
+			// Verify no cycles in TF sources
+			for _, s := range parent.Spec.Sources {
+				if s.TFApply != "" {
+					if s.TFApply == parent.GetName() && parent.GetTFKind() == TFKindApply {
+						return fmt.Errorf("source.tfapply %s/%s: CYCLE", parent.GetTFKind(), s.TFApply)
+					}
+				}
+				if s.TFPlan != "" {
+					if s.TFPlan == parent.GetName() && parent.GetTFKind() == TFKindPlan {
+						return fmt.Errorf("source.tfplan %s/%s: CYCLE", parent.GetTFKind(), s.TFPlan)
+					}
+				}
 			}
-		}
-		if s.TFPlan != "" {
-			if s.TFPlan == parent.GetName() && parent.GetTFKind() == TFKindPlan {
-				return fmt.Errorf("source.tfplan %s/%s: CYCLE", parent.GetTFKind(), s.TFPlan)
-			}
-		}
-	}
 
-	// Verify vars were given for TFInputs
-	if parent.Spec.TFInputs != nil {
-		for _, tfinput := range *parent.Spec.TFInputs {
-			if len(tfinput.VarMap) == 0 {
-				return fmt.Errorf("source.tfinputs.varMap is empty")
+			// Verify vars were given for TFInputs
+			if parent.Spec.TFInputs != nil {
+				for _, tfinput := range *parent.Spec.TFInputs {
+					if len(tfinput.VarMap) == 0 {
+						return fmt.Errorf("source.tfinputs.varMap is empty")
+					}
+				}
 			}
+		} else {
+			return err
 		}
 	}
 
@@ -307,9 +310,10 @@ type TerraformSpec struct {
 
 // TerraformSpecFrom is the the top level structure of specifying spec from antoher Terraform resource
 type TerraformSpecFrom struct {
-	TFPlan    string `json:"tfplan,omitempty"`
-	TFApply   string `json:"tfapply,omitempty"`
-	TFDestroy string `json:"tfdestroy,omitempty"`
+	TFPlan       string `json:"tfplan,omitempty"`
+	TFApply      string `json:"tfapply,omitempty"`
+	TFDestroy    string `json:"tfdestroy,omitempty"`
+	WaitForReady bool   `json:"waitForReady,omitempty"`
 }
 
 // Verify checks all required fields in the spec.

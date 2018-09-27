@@ -17,5 +17,13 @@ lpods:
 metalogs:
 	kubectl -n metacontroller logs --tail=200 -f metacontroller-0
 
+rollpod:
+	kubectl -n metacontroller delete pod -l app=terraform-operator
+
+podlogs:
+	POD=$(shell kubectl get pod -n metacontroller -l app=terraform-operator -o name | tail -1) && \
+	kubectl -n metacontroller wait $$POD --for=condition=Ready && \
+	  kubectl -n metacontroller logs -f $$POD
+
 include kaniko.mk
 include test.mk
