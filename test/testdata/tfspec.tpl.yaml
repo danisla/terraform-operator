@@ -58,3 +58,11 @@ spec:
     tfapply: {{ .TFApply }}
   {{- end }}
   {{- end }}
+
+  {{- if .TFInputs }}
+  # TFInputs
+  - name: tf-test-1
+    varMap:
+    - source: 
+      dest:
+  {{- end }}
