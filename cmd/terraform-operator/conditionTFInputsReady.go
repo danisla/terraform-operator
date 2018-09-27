@@ -24,6 +24,7 @@ func reconcileTFInputsReady(condition *tfv1.Condition, parent *tfv1.Terraform, s
 				varsFound := true
 				for _, srcVar := range tfinput.VarMap {
 					if tfapply.Status.TFOutput == nil || len(*tfapply.Status.TFOutput) == 0 {
+						varsFound = false
 						reasons = append(reasons, fmt.Sprintf("%s/%s: Waiting for output vars", tfv1.TFKindApply, tfinput.Name))
 					} else {
 						found := false
@@ -41,7 +42,21 @@ func reconcileTFInputsReady(condition *tfv1.Condition, parent *tfv1.Terraform, s
 					}
 				}
 				if varsFound {
-					reasons = append(reasons, fmt.Sprintf("%s/%s: OUTPUTS READY", tfv1.TFKindApply, tfinput.Name))
+					ready := true
+					if tfinput.WaitForReady {
+						for _, c := range tfapply.Status.Conditions {
+							if c.Type == tfv1.ConditionReady {
+								if c.Status != tfv1.ConditionTrue {
+									ready = false
+								}
+							}
+						}
+					}
+					if ready {
+						reasons = append(reasons, fmt.Sprintf("%s/%s: OUTPUTS READY", tfv1.TFKindApply, tfinput.Name))
+					} else {
+						reasons = append(reasons, fmt.Sprintf("%s/%s: Waiting for condition %s", tfv1.TFKindApply, tfinput.Name, tfv1.ConditionReady))
+					}
 				} else {
 					allFound = false
 				}

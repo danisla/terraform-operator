@@ -364,8 +364,9 @@ type TerraformConfigVarsFrom struct {
 
 // TerraformConfigInputs is the structure defining how to use output vars from other TerraformApply resources
 type TerraformConfigInputs struct {
-	Name   string       `json:"name,omitempty"`
-	VarMap []VarMapItem `json:"varMap,omitempty"`
+	Name         string       `json:"name,omitempty"`
+	WaitForReady bool         `json:"waitForReady,omitempty"`
+	VarMap       []VarMapItem `json:"varMap,omitempty"`
 }
 
 // VarMapItem is a config input mapping element

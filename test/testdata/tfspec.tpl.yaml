@@ -61,8 +61,13 @@ spec:
 
   {{- if .TFInputs }}
   # TFInputs
-  - name: tf-test-1
+  tfinputs:
+  {{- range .TFInputs }}
+  - name: {{ .Name }}
     varMap:
-    - source: 
-      dest:
+    {{- range .VarMap }}
+    - source: {{ .Source }}
+      dest: {{ .Dest }}
+    {{- end }}
+  {{- end }}
   {{- end }}

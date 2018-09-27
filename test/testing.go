@@ -42,11 +42,22 @@ type tfSpecData struct {
 	TFVars                   map[string]string
 	TFPlan                   string
 	TFVarsFrom               []TFSource
+	TFInputs                 []TFInput
 }
 
 type TFSource struct {
 	TFApply string
 	TFPlan  string
+}
+
+type TFInput struct {
+	Name   string
+	VarMap []InputVar
+}
+
+type InputVar struct {
+	Source string
+	Dest   string
 }
 
 type TerraformOutputVar struct {
