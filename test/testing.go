@@ -113,7 +113,7 @@ func (tf *Terraform) VerifyOutputVars(t *testing.T) {
 	// Verify outputs in status.
 	allFound := len(tf.Status.Outputs) > 0
 	for _, v := range tf.Status.Outputs {
-		if v.Name != "project" && v.Name != "region" && v.Name != "zones" && v.Name != "metadata_key" && v.Name != "metadata_value" {
+		if v.Name != "project" && v.Name != "region" && v.Name != "zones" && v.Name != "metadata_key" && v.Name != "metadata_key2" && v.Name != "metadata_value" {
 			allFound = false
 		}
 	}
