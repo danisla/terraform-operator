@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap 
 metadata: 
-  name: example-tf
+  name: example-cm
 data: 
   terraform.tfvars: |-
     region = "us-central1"

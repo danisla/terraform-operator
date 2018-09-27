@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 	"github.com/jinzhu/copier"
 	corev1 "k8s.io/api/core/v1"
@@ -50,8 +48,6 @@ func (tfp *TFPod) makeTerraformPod(podName, namespace string, kind tfv1.TFKind, 
 	volumes := tfp.makeVolumes()
 
 	labels := tfp.makeLabels()
-
-	containerResources := tfp.makeContainerResources()
 
 	annotations := make(map[string]string, 0)
 
@@ -98,7 +94,6 @@ func (tfp *TFPod) makeTerraformPod(podName, namespace string, kind tfv1.TFKind, 
 				ImagePullPolicy: tfp.ImagePullPolicy,
 				Env:             envVars,
 				VolumeMounts:    volumeMounts,
-				Resources:       containerResources,
 			},
 		},
 		Volumes: volumes,
@@ -118,19 +113,6 @@ func (tfp *TFPod) makeTerraformPod(podName, namespace string, kind tfv1.TFKind, 
 	}
 
 	return pod, nil
-}
-
-func (tfp *TFPod) makeContainerResources() corev1.ResourceRequirements {
-	return corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("500m"),
-			corev1.ResourceMemory: resource.MustParse("128Mi"),
-		},
-		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("100m"),
-			corev1.ResourceMemory: resource.MustParse("64Mi"),
-		},
-	}
 }
 
 func (tfp *TFPod) makeInitContainers() []corev1.Container {
@@ -431,11 +413,11 @@ func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {
 func makeOutputVarsSecret(name string, namespace string, vars []tfv1.TerraformOutputVar) corev1.Secret {
 	var secret corev1.Secret
 
-	data := make(map[string]string, 0)
+	data := make(map[string][]byte, 0)
 
 	if vars != nil {
 		for _, v := range vars {
-			data[v.Name] = v.Value
+			data[v.Name] = []byte(v.Value)
 		}
 	}
 
@@ -449,7 +431,7 @@ func makeOutputVarsSecret(name string, namespace string, vars []tfv1.TerraformOu
 			Namespace:   namespace,
 			Annotations: map[string]string{},
 		},
-		StringData: data,
+		Data: data,
 	}
 
 	return secret
