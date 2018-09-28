@@ -145,14 +145,28 @@ spec:
       - name: terraform-operator
         image: gcr.io/cloud-solutions-group/terraform-operator:latest
         imagePullPolicy: Always
-        command: ["/usr/bin/terraform-operator"]
+        command:
+        - bash
+        - -exc
+        - |-
+          gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
+          /usr/bin/terraform-operator
         env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/run/secrets/gcp/sa_key.json
         - name: TF_IMAGE
           value: gcr.io/cloud-solutions-group/terraform-pod:v0.11.8
         - name: TF_IMAGE_PULL_POLICY
           value: Always
         # - name: HTTP_DEBUG
         #   value: "true"
+        volumeMounts:
+        - name: google-credentials
+          mountPath: /var/run/secrets/gcp/
+      volumes:
+      - name: google-credentials
+        secret:
+          secretName: tf-operator-sa-key
 ---
 apiVersion: v1
 kind: Service

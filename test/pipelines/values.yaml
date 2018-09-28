@@ -1,0 +1,6 @@
+maintainer_email: disla@google.com
+
+uri: https://github.com/danisla/terraform-operator.git
+branch: import-test
+github_owner: danisla
+github_repo: terraform-operator

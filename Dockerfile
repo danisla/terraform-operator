@@ -1,3 +1,5 @@
+ARG TFJSON_TAG=latest
+
 FROM golang:1.10-alpine AS build
 RUN apk add --update ca-certificates bash curl git
 RUN curl https://raw.githubusercontent.com/golang/dep/v0.5.0/install.sh | sh
@@ -6,7 +8,7 @@ COPY . /go/src/github.com/danisla/terraform-operator/
 WORKDIR /go/src/github.com/danisla/terraform-operator/cmd/terraform-operator
 RUN dep ensure && go install
 
-FROM gcr.io/cloud-solutions-group/tfjson-service AS tfjson
+FROM gcr.io/cloud-solutions-group/tfjson-service:$TFJSON_TAG AS tfjson
 
 FROM google/cloud-sdk:alpine
 RUN apk add --update ca-certificates bash curl

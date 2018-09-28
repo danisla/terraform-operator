@@ -33,11 +33,11 @@ type tfSpecData struct {
 	Kind                     TFKind
 	Name                     string
 	Image                    string
+	BackendBucket            string
+	BucketPrefix             string
 	ConfigMapSources         []string
 	EmbeddedSources          []string
 	TFSources                []TFSource
-	BackendBucket            string
-	BucketPrefix             string
 	GoogleProviderSecretName string
 	TFVars                   map[string]string
 	TFPlan                   string
@@ -156,9 +156,13 @@ const (
 var namespace string
 var deleteSpec bool
 var timeout int
+var backendBucket string
+var bucketPrefix string
 
 func init() {
 	flag.StringVar(&namespace, "namespace", "default", "namespace to deploy to.")
+	flag.StringVar(&backendBucket, "bucket", "", "bucket to save remote state to. Default is the PROJECT_ID-terraform-operator")
+	flag.StringVar(&bucketPrefix, "bucketPrefix", "terraform", "path prefix in bucket to save remote state to.")
 	flag.BoolVar(&deleteSpec, "delete", true, "wether to delete the applied test specs.")
 	flag.IntVar(&timeout, "timeout", 10, "timeout in minutes to wait for any Terraform operation")
 	flag.Parse()
@@ -213,6 +217,7 @@ func testMakeTF(t *testing.T, data tfSpecData) string {
 	if data.GoogleProviderSecretName == "" {
 		data.GoogleProviderSecretName = defaultGoogleProviderSecret
 	}
+
 	if data.BackendBucket == "" {
 		// Generate from project ID.
 		bucket, err := defaultBackendBucket()
@@ -222,7 +227,7 @@ func testMakeTF(t *testing.T, data tfSpecData) string {
 		data.BackendBucket = bucket
 	}
 	if data.BucketPrefix == "" {
-		data.BucketPrefix = defaultBucketPrefix
+		data.BucketPrefix = bucketPrefix
 	}
 
 	var b bytes.Buffer

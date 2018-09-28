@@ -2,6 +2,7 @@
 
 export TERRAFORM_OPERATOR_CONFIG="${HOME}/.terraform-operator-plugin.env"
 export TERRAFORM_OPERATOR_GOOGLE_SECRET="tf-provider-google"
+export TERRAFORM_OPERATOR_SA_KEY_SECRET="tf-operator-sa-key"
 
 declare -a GOOGLE_CREDS
 export GOOGLE_CREDS
@@ -81,6 +82,7 @@ function configure() {
     # Create secret
     if [[ -z "${secretName}" ]]; then
         createGoogleProviderSecret "${TERRAFORM_OPERATOR_GOOGLE_SECRET}" "${sa_key}" "${project}"
+        createOperatorSecret "${TERRAFORM_OPERATOR_SA_KEY_SECRET}" "${sa_key}"
     fi
 
     # Creat the bucket
@@ -153,6 +155,13 @@ function createGoogleProviderSecret() {
     namespace=${KUBECTL_PLUGINS_CURRENT_NAMESPACE:-"default"}
 
     kubectl -n ${namespace} create secret generic ${name} --from-literal=GOOGLE_PROJECT=${project} --from-file=GOOGLE_CREDENTIALS=${sa_key}
+}
+
+function createOperatorSecret() {
+    local name=$1
+    local sa_key=$2
+
+    kubectl -n metacontroller create secret generic ${name} --from-file=sa_key.json=${sa_key}
 }
 
 function createEditorSAKey() {

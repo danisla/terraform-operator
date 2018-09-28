@@ -1,0 +1,15 @@
+
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '--build-arg',
+    'TFJSON_TAG=${_TFJSON_TAG}',
+    '-t', 'gcr.io/${_PROJECT}/terraform-operator:${_TAG}',
+    '.'
+  ]
+substitutions:
+  _PROJECT: ${PROJECT_ID}
+  _TFJSON_TAG: latest
+  _TAG: latest
+images: ['gcr.io/${_PROJECT}/terraform-operator:${_TAG}']

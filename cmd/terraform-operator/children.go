@@ -403,7 +403,7 @@ func getBackendBucketandPrefix(parent *tfv1.Terraform) (string, string) {
 		// Create canonical prefix.
 		backendPrefix = tfDriverConfig.BackendPrefix
 	}
-	return backendBucket, backendPrefix
+	return backendBucket, filepath.Join(backendPrefix, parent.GetName())
 }
 
 func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {

@@ -40,6 +40,7 @@ func TestRetry(t *testing.T) {
 		tf := testGetTF(t, TFKindApply, namespace, name)
 		if tf.Status.PodName == "" {
 			fmt.Printf("Waiting for %s/%s pod: %s %s\n", TFKindApply, name, tf.Status.PodName, tf.Status.PodStatus)
+			time.Sleep(time.Second * time.Duration(5))
 		} else {
 			assert(t, baseNamePat.MatchString(tf.Status.PodName), "invalid pod name: %s", tf.Status.PodName)
 			baseNamePat.FindAllStringSubmatch(tf.Status.PodName, 0)

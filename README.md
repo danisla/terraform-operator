@@ -39,7 +39,17 @@ kubectl apply -f https://raw.githubusercontent.com/GoogleCloudPlatform/metacontr
 
 ## Install the operator
 
-1. Deploy the manifest files for the operator:
+1. Create secrets containing google credentials used by the operator and terraform pod named `tf-operator-sa-key` and `tf-provider-google` respectively:
+
+```
+make -e NAMESPACE=default secrets
+```
+
+> Note that the `tf-provider-google` secret will be created in the default namespace. Change this if you want to run terraform from another namespace.
+
+2. Modify the `terraform-operator-rbac.yaml` file if you want to run terraform from a namespace other than `default`.
+
+3. Deploy the manifest files for the operator:
 
 ```
 kubectl apply -f manifests/terraform-operator-rbac.yaml

@@ -5,7 +5,7 @@ metadata:
 spec:
   image: {{.Image}}
   imagePullPolicy: Always
-  backendBucket: {{.BackendBucket}}
+  backendBucket: {{.BackendBucket}}	
   backendPrefix: {{.BucketPrefix}}
   providerConfig:
   - name: google
