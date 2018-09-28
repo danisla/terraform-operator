@@ -101,13 +101,9 @@ kind: TerraformApply
 metadata:
   name: example
 spec:
-  image: gcr.io/cloud-solutions-group/terraform-pod:latest
-  imagePullPolicy: Always
-  backendBucket: {{BACKEND_BUCKET}}
-  backendPrefix: terraform
   providerConfig:
-    google:
-      secretName: tf-provider-google
+  - name: google
+    secretName: tf-provider-google
   sources:
   - embedded: |-
       variable "region" {}
@@ -132,11 +128,10 @@ spec:
         value = "${google_compute_project_metadata_item.default.value}"
       }
   tfvars:
-    region: us-central1
+  - name: region
+    value: us-central1
 EOF
 
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
-sed -i -e "s|{{BACKEND_BUCKET}}|${BACKEND_BUCKET}|g" example-tfapply.yaml
 cat example-tfapply.yaml
 ```
 
@@ -167,6 +162,7 @@ kubectl describe tfapply example
 
 ```
 sed 's/kind: TerraformApply/kind: TerraformDestroy/g' example-tfapply.yaml > example-tfdestroy.yaml
+cat example-tfdestroy.yaml
 ```
 
 ## Create the TerraformDestroy resource

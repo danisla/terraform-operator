@@ -1,0 +1,18 @@
+apiVersion: ctl.isla.solutions/v1
+kind: {{.Kind}}
+metadata:
+  name: {{.Name}}
+specFrom:
+{{- if .TFPlan }}
+  # Spec from existing TerraformPlan
+  tfplan: {{ .TFPlan }}
+{{- end }}
+{{- if .TFApply }}
+  # Spec from existing TerraformApply
+  tfapply: {{ .TFApply }}
+{{- end }}
+{{- if .TFDestroy }}
+  # Spec from existing TerraformDestroy
+  tfdestroy: {{ .TFDestroy }}
+{{- end }}
+  waitForReady: {{ .WaitForReady }}

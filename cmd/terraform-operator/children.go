@@ -2,22 +2,16 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
-	tftype "github.com/danisla/terraform-operator/pkg/types"
+	tfv1 "github.com/danisla/terraform-operator/pkg/types"
+	"github.com/jinzhu/copier"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-// Paths to scripts in the Terraform Pod container
-const (
-	PLAN_POD_CMD    = "/run-terraform-plan.sh"
-	APPLY_POD_CMD   = "/run-terraform-apply.sh"
-	DESTROY_POD_CMD = "/run-terraform-destroy.sh"
-	GCS_TARBALL_CMD = "/get-gcs-tarball.sh"
 )
 
 // Name of the containers in the Terraform Pod
@@ -34,18 +28,18 @@ type TFPod struct {
 	ProjectID          string
 	Workspace          string
 	SourceData         TerraformConfigSourceData
-	ProviderConfigKeys map[string][]string
+	ProviderConfigKeys ProviderConfigKeys
 	BackendBucket      string
 	BackendPrefix      string
 	TFParent           string
 	TFPlan             string
-	TFInputs           map[string]string
-	TFVars             map[string]string
-	TFVarsFrom         map[string]string
+	TFInputs           TerraformInputVars
+	TFVarsFrom         TerraformInputVars
+	TFVars             TerraformInputVars
 }
 
-func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, error) {
-	var pod corev1.Pod
+func (tfp *TFPod) makeTerraformPod(podName, namespace string, kind tfv1.TFKind, currPod *corev1.Pod) (Pod, error) {
+	var pod Pod
 
 	envVars := tfp.makeEnvVars(podName)
 
@@ -55,56 +49,89 @@ func (tfp *TFPod) makeTerraformPod(podName string, cmd []string) (corev1.Pod, er
 
 	labels := tfp.makeLabels()
 
-	pod = corev1.Pod{
+	annotations := make(map[string]string, 0)
+
+	if currPod != nil {
+		for k, v := range currPod.GetAnnotations() {
+			if k == "metacontroller.k8s.io/last-applied-configuration" {
+				continue
+			} else {
+				annotations[k] = v
+			}
+		}
+	}
+
+	objectMeta := ObjectMeta{
+		Name:        podName,
+		Namespace:   namespace,
+		Labels:      labels,
+		Annotations: annotations,
+	}
+
+	var podCmd string
+	switch kind {
+	case tfv1.TFKindPlan:
+		podCmd = tfDriverConfig.PodCmdPlan
+	case tfv1.TFKindApply:
+		podCmd = tfDriverConfig.PodCmdApply
+	case tfv1.TFKindDestroy:
+		podCmd = tfDriverConfig.PodCmdDestroy
+	}
+
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: tfDriverConfig.PodServiceAccount,
+
+		// Treating this pod like a job, so no restarts.
+		RestartPolicy: corev1.RestartPolicyNever,
+
+		InitContainers: tfp.makeInitContainers(),
+
+		Containers: []corev1.Container{
+			corev1.Container{
+				Name:            TERRAFORM_CONTAINER_NAME,
+				Image:           tfp.Image,
+				Command:         strings.Split(podCmd, " "),
+				ImagePullPolicy: tfp.ImagePullPolicy,
+				Env:             envVars,
+				VolumeMounts:    volumeMounts,
+			},
+		},
+		Volumes: volumes,
+	}
+
+	if currPod != nil {
+		copier.Copy(&podSpec, currPod.Spec)
+	}
+
+	pod = Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Pod",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   podName,
-			Labels: labels,
-		},
-		Spec: corev1.PodSpec{
-			ServiceAccountName: DEFAULT_POD_SERVICE_ACCOUNT,
-
-			// Treating this pod like a job, so no restarts.
-			RestartPolicy: corev1.RestartPolicyNever,
-
-			InitContainers: tfp.makeInitContainers(),
-
-			Containers: []corev1.Container{
-				corev1.Container{
-					Name:            TERRAFORM_CONTAINER_NAME,
-					Image:           tfp.Image,
-					Command:         cmd,
-					ImagePullPolicy: tfp.ImagePullPolicy,
-					Env:             envVars,
-					VolumeMounts:    volumeMounts,
-				},
-			},
-			Volumes: volumes,
-		},
+		ObjectMeta: objectMeta,
+		Spec:       podSpec,
 	}
+
 	return pod, nil
 }
 
 func (tfp *TFPod) makeInitContainers() []corev1.Container {
 	initContainers := make([]corev1.Container, 0)
 
-	if len(*tfp.SourceData.GCSObjects) > 0 {
+	if len(tfp.SourceData.GCSObjects) > 0 {
 		envVars := make([]corev1.EnvVar, 0)
 
 		envVars = append(envVars, tfp.makeProviderEnv()...)
 
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  "GCS_TARBALLS",
-			Value: strings.Join(*tfp.SourceData.GCSObjects, ","),
+			Value: strings.Join(tfp.SourceData.GCSObjects, ","),
 		})
 
 		initContainers = append(initContainers, corev1.Container{
 			Name:            GCS_TARBALL_CONTAINER_NAME,
 			Image:           tfp.Image,
-			Command:         []string{GCS_TARBALL_CMD},
+			Command:         strings.Split(tfDriverConfig.PodCmdGCSTarball, " "),
 			ImagePullPolicy: tfp.ImagePullPolicy,
 			Env:             envVars,
 			VolumeMounts: []corev1.VolumeMount{
@@ -263,7 +290,7 @@ func (tfp *TFPod) makeVolumes() []corev1.Volume {
 
 	// ConfigMap volumes
 	var defaultMode int32 = 438
-	for k := range *tfp.SourceData.ConfigMapHashes {
+	for k := range tfp.SourceData.ConfigMapHashes {
 		volumes = append(volumes, corev1.Volume{
 			Name: k,
 			VolumeSource: corev1.VolumeSource{
@@ -290,7 +317,7 @@ func (tfp *TFPod) makeVolumeMounts() []corev1.VolumeMount {
 	})
 
 	// Mount each entity in the config
-	for _, t := range *tfp.SourceData.ConfigMapKeys {
+	for _, t := range tfp.SourceData.ConfigMapKeys {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      t[0],
 			MountPath: filepath.Join("/opt/terraform/", t[1]),
@@ -309,76 +336,136 @@ func (tfp *TFPod) makeLabels() map[string]string {
 	return labels
 }
 
-func getImageAndPullPolicy(parent *tftype.Terraform) (string, corev1.PullPolicy) {
+func getImageAndPullPolicy(parent *tfv1.Terraform) (string, corev1.PullPolicy) {
 	var image string
 	var pullPolicy corev1.PullPolicy
 
 	if parent.Spec.Image != "" {
 		image = parent.Spec.Image
 	} else {
-		image = DEFAULT_IMAGE
+		image = tfDriverConfig.Image
 	}
 
 	if parent.Spec.ImagePullPolicy != "" {
 		pullPolicy = corev1.PullPolicy(parent.Spec.ImagePullPolicy)
 	} else {
-		pullPolicy = DEFAULT_IMAGE_PULL_POLICY
+		pullPolicy = tfDriverConfig.ImagePullPolicy
 	}
 
 	return image, pullPolicy
 }
 
-func makeOrdinalPodName(parentType ParentType, parent *tftype.Terraform, children *TerraformOperatorRequestChildren) string {
+func getOrdinalIndex(podName string) int {
 	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
 	var validName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?-([0-9]+)$`)
-
-	i := -1
-	for name := range children.Pods {
-		if validName.MatchString(name) {
-			toks := strings.Split(name, "-")
-			num, _ := strconv.Atoi(toks[len(toks)-1])
-			if num > i {
-				i = num
-			}
-		} else {
-			myLog(parent, "WARN", fmt.Sprintf("Found pod in children list that does not match ordinal pattern: %s", name))
-		}
+	index := 0
+	if validName.MatchString(podName) {
+		toks := strings.Split(podName, "-")
+		index, _ = strconv.Atoi(toks[len(toks)-1])
+	} else {
+		log.Printf("WARN: could not extract ordinal index from name: %s", podName)
 	}
-	i++
-	return fmt.Sprintf("%s-%s-%d", parent.Name, parentType, i)
+	return index
 }
 
-func makeTerraformSourceConfigMap(name string, data string) corev1.ConfigMap {
+func makeOrdinalPodName(parent *tfv1.Terraform, index int) string {
+	// Expected format is PARENT_NAME-PARENT_TYPE-INDEX
+	return fmt.Sprintf("%s-%s-%d", parent.GetName(), parent.GetTFKindShort(), index)
+}
+
+func makeTerraformSourceConfigMap(name string, data string, filename string) corev1.ConfigMap {
 	cmData := strings.TrimSpace(data)
-	keyName := "main.tf"
 
 	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ConfigMap",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Annotations: map[string]string{},
+		},
 		Data: map[string]string{
-			keyName: cmData,
+			filename: cmData,
 		},
 	}
 	return cm
 }
 
-func getBackendBucketandPrefix(parent *tftype.Terraform) (string, string) {
+func getBackendBucketandPrefix(parent *tfv1.Terraform) (string, string) {
 	backendBucket := parent.Spec.BackendBucket
 	if backendBucket == "" {
-		// Create canonical bucket name.
-		backendBucket = fmt.Sprintf("%s-terraform-operator", config.Project)
+		// Use default from config.
+		backendBucket = tfDriverConfig.BackendBucket
 	}
 	backendPrefix := parent.Spec.BackendPrefix
 	if backendPrefix == "" {
 		// Create canonical prefix.
-		backendPrefix = "terraform"
+		backendPrefix = tfDriverConfig.BackendPrefix
 	}
 	return backendBucket, backendPrefix
 }
 
 func makeStateFilePath(backendBucket, backendPrefix, workspace string) string {
 	return fmt.Sprintf("gs://%s/%s/%s.tfstate", backendBucket, backendPrefix, workspace)
+}
+
+func makeOutputVarsSecret(name string, namespace string, vars []tfv1.TerraformOutputVar) corev1.Secret {
+	var secret corev1.Secret
+
+	data := make(map[string][]byte, 0)
+
+	if vars != nil {
+		for _, v := range vars {
+			data[v.Name] = []byte(v.Value)
+		}
+	}
+
+	secret = corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: map[string]string{},
+		},
+		Data: data,
+	}
+
+	return secret
+}
+
+func getLastPodIndex(pods map[string]corev1.Pod) int {
+	index := 0
+	for name := range pods {
+		podIndex := getOrdinalIndex(name)
+		if podIndex > index {
+			index = podIndex
+		}
+	}
+	return index
+}
+
+func getPodStatus(pods map[string]corev1.Pod) (int, int, int, int) {
+	active := 0
+	succeeded := 0
+	failed := 0
+	index := 0
+	for _, pod := range pods {
+		switch pod.Status.Phase {
+		case corev1.PodSucceeded:
+			succeeded++
+		case corev1.PodFailed:
+			failed++
+		default:
+			podIndex := getOrdinalIndex(pod.GetName())
+			if podIndex > index {
+				index = podIndex
+			}
+			active++
+		}
+	}
+	return active, succeeded, failed, index
 }

@@ -2,4 +2,8 @@
 vendor/
 tests/
 tmp/
-examples/*/example*-tf*.yaml
+examples/configmap-source/example-*-tf*.yaml
+examples/tfplan-input/example-tfplan.yaml
+examples/tfplan-input/example-tfapply.yaml
+examples/tfplan-input/example-tfdestroy.yaml
+examples/tfvars-input/example-*.yaml

@@ -8,11 +8,13 @@ import (
 	"net/http/httputil"
 	"os"
 
-	tftype "github.com/danisla/terraform-operator/pkg/types"
+	tfdriverv1 "github.com/danisla/terraform-operator/pkg/tfdriver"
+	tfv1 "github.com/danisla/terraform-operator/pkg/types"
 )
 
 var (
-	config Config
+	config         Config
+	tfDriverConfig tfdriverv1.TerraformDriverConfig
 )
 
 func init() {
@@ -24,10 +26,12 @@ func init() {
 	if err := config.loadAndValidate(); err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
-}
 
-func myLog(parent *tftype.Terraform, level, msg string) {
-	log.Printf("[%s][%s][%s] %s", level, parent.Kind, parent.Name, msg)
+	tfDriverConfig = tfdriverv1.TerraformDriverConfig{}
+
+	if err := tfDriverConfig.LoadAndValidate(config.Project); err != nil {
+		log.Fatalf("Failed to load terraform driver config: %v", err)
+	}
 }
 
 func main() {
@@ -48,7 +52,7 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var req SyncRequest
-		var desiredStatus *tftype.TerraformOperatorStatus
+		var desiredStatus *tfv1.TerraformOperatorStatus
 		var desiredChildren *[]interface{}
 		var parentType ParentType
 
@@ -71,12 +75,12 @@ func webhookHandler() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		switch req.Parent.Kind {
-		case "TerraformPlan":
+		switch tfv1.TFKind(req.Parent.Kind) {
+		case tfv1.TFKindPlan:
 			parentType = ParentPlan
-		case "TerraformApply":
+		case tfv1.TFKindApply:
 			parentType = ParentApply
-		case "TerraformDestroy":
+		case tfv1.TFKindDestroy:
 			parentType = ParentDestroy
 		}
 		desiredStatus, desiredChildren, err = sync(parentType, &req.Parent, &req.Children)

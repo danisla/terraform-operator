@@ -92,29 +92,27 @@ gsutil mb gs://${BACKEND_BUCKET}
 
 ## Create the example terraform apply file
 
-1. Create the `example-tfapply.yaml` file:
+1. Create the `example-cm-tfapply.yaml` file:
 
 ```
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
-cat > example-tfapply.yaml <<EOF
+cat > example-cm-tfapply.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
 kind: TerraformApply
 metadata:
   name: example
 spec:
-  backendBucket: ${BACKEND_BUCKET}
-  backendPrefix: terraform
   providerConfig:
-    google:
-      secretName: tf-provider-google
+  - name: google
+    secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf
       trigger: true
   tfvars:
-    region: us-central1
+  - name: region
+    value: us-central1
 EOF
-cat example-tfapply.yaml
+cat example-cm-tfapply.yaml
 ```
 
 ## Create the ConfigMap and TerraformApply resource
@@ -128,7 +126,7 @@ kubectl apply -f example-cm.yaml
 2. Create the `TerraformApply` resource by applying the yaml spec:
 
 ```
-kubectl apply -f example-tfapply.yaml
+kubectl apply -f example-cm-tfapply.yaml
 ```
 
 3. Get the output of the terraform operation:
@@ -146,10 +144,10 @@ kubectl describe tfapply example
 
 ## Create the example terraform destroy file
 
-1. Create the `example-tfdestroy.yaml` file from the contents of the `example-tfapply.yaml` file:
+1. Create the `example-cm-tfdestroy.yaml` file from the contents of the `example-cm-tfapply.yaml` file:
 
 ```
-sed 's/kind: TerraformApply/kind: TerraformDestroy/g' example-tfapply.yaml > example-tfdestroy.yaml
+sed 's/kind: TerraformApply/kind: TerraformDestroy/g' example-cm-tfapply.yaml > example-cm-tfdestroy.yaml
 ```
 
 ## Create the TerraformDestroy resource
@@ -157,7 +155,7 @@ sed 's/kind: TerraformApply/kind: TerraformDestroy/g' example-tfapply.yaml > exa
 1. Create the `TerraformDestroy` resource by applying the yaml spec:
 
 ```
-kubectl apply -f example-tfdestroy.yaml
+kubectl apply -f example-cm-tfdestroy.yaml
 ```
 
 2. Get the output of the terraform operation:
