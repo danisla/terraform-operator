@@ -15,7 +15,7 @@ func reconcileTFPlanReady(condition *tfv1.Condition, parent *tfv1.Terraform, sta
 	if parent.Spec.TFPlan != "" {
 		tfplan, err = getTerraform(tfv1.TFKindPlan, parent.GetNamespace(), parent.Spec.TFPlan)
 		if err != nil {
-			condition.Reason = fmt.Sprintf("%s/%s: WAITING", tfv1.TFKindPlan, tfplan.Name)
+			condition.Reason = fmt.Sprintf("%s/%s: WAITING", tfv1.TFKindPlan, parent.Spec.TFPlan)
 		} else {
 			tfplanfile = tfplan.Status.TFPlan
 		}

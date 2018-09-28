@@ -125,12 +125,5 @@ func (c *TerraformDriverConfig) LoadAndValidate(project string) error {
 		c.PodCmdGCSTarball = "/get-gcs-tarball.sh"
 	}
 
-	if googleConfigSecret, ok := os.LookupEnv("TF_GOOGLE_PROVIDER_SECRET"); ok == true {
-		c.GoogleProviderConfigSecret = googleConfigSecret
-	} else {
-		c.GoogleProviderConfigSecret = DEFAULT_TF_PROVIDER_SECRET
-		log.Printf("[INFO] No TF_GOOGLE_PROVIDER_SECRET given, using default: %s", c.GoogleProviderConfigSecret)
-	}
-
 	return nil
 }

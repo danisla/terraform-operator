@@ -102,7 +102,7 @@ metadata:
   name: example
 spec:
   providerConfig:
-  - google:
+  - name: google
     secretName: tf-provider-google
   sources:
   - embedded: |-

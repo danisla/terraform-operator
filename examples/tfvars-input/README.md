@@ -109,25 +109,24 @@ kubectl create configmap example-tf-mig --from-file=mig.tf --from-file=gceme.sh.
 1. Create the `example-network-tfapply.yaml` file:
 
 ```
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
 cat > example-network-tfapply.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
 kind: TerraformApply
 metadata:
   name: example-network
 spec:
-  backendBucket: ${BACKEND_BUCKET}
-  backendPrefix: terraform
   providerConfig:
-    google:
-      secretName: tf-provider-google
+  - name: google
+    secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf-network
       trigger: true
   tfvars:
-    region: us-central1
-    network_name: example-tfvars-input
+  - name: region
+    value: us-central1
+  - name: network_name
+    value: example-tfvars-input
 EOF
 cat example-network-tfapply.yaml
 ```
@@ -137,18 +136,15 @@ cat example-network-tfapply.yaml
 1. Create the `example-mig-tfapply.yaml` file:
 
 ```
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
 cat > example-mig-tfapply.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
 kind: TerraformApply
 metadata:
   name: example-mig
 spec:
-  backendBucket: ${BACKEND_BUCKET}
-  backendPrefix: terraform
   providerConfig:
-    google:
-      secretName: tf-provider-google
+  - name: google
+    secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf-mig
@@ -156,11 +152,13 @@ spec:
   tfinputs:
   - name: example-network
     varMap:
-      network_region: region
-      network_name: network_name
+    - source: network_region
+      dest: region
+    - source: network_name
+      dest: network_name
   tfvars:
-    region: "us-central1"
-    mig_size: "2"
+  - name: mig_size
+    value: "2"
 EOF
 cat example-mig-tfapply.yaml
 ```
@@ -244,8 +242,7 @@ kubectl logs -f $POD
 1. Remove the `Terraform*` resources:
 
 ```
-kubectl delete tfapply,tfdestroy example-mig
-kubectl delete tfapply,tfdestroy example-network
+kubectl delete tfapply,tfdestroy example-mig example-network
 ```
 
 2. Delete the GKE cluster:

@@ -95,24 +95,22 @@ gsutil mb gs://${BACKEND_BUCKET}
 1. Create the `example-tfplan.yaml` file:
 
 ```
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
 cat > example-tfplan.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
 kind: TerraformPlan
 metadata:
-  name: example
+  name: example-apply-plan
 spec:
-  backendBucket: ${BACKEND_BUCKET}
-  backendPrefix: terraform
   providerConfig:
-    google:
-      secretName: tf-provider-google
+  - name: google
+    secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf
       trigger: true
   tfvars:
-    region: us-central1
+  - name: region
+    value: us-central1
 EOF
 cat example-tfplan.yaml
 ```
@@ -122,24 +120,22 @@ cat example-tfplan.yaml
 1. Create the `example-tfapply.yaml` file:
 
 ```
-BACKEND_BUCKET="$(gcloud config get-value project)-terraform-operator"
 cat > example-tfapply.yaml <<EOF
 apiVersion: ctl.isla.solutions/v1
 kind: TerraformApply
 metadata:
-  name: example
+  name: example-apply-plan
 spec:
-  backendBucket: ${BACKEND_BUCKET}
-  backendPrefix: terraform
   providerConfig:
-    google:
-      secretName: tf-provider-google
+  - name: google
+    secretName: tf-provider-google
   sources:
   - configMap:
       name: example-tf
-  tfplan: example
+  tfplan: example-apply-plan
   tfvars:
-    region: us-central1
+  - name: region
+    value: us-central1
 EOF
 cat example-tfapply.yaml
 ```
@@ -167,14 +163,14 @@ kubectl apply -f example-tfapply.yaml
 4. Get the output of the terraform plan operation:
 
 ```
-POD=$(kubectl get tfplan example -o jsonpath='{.status.podName}')
+POD=$(kubectl get tfplan example-apply-plan -o jsonpath='{.status.podName}')
 kubectl logs -f $POD
 ```
 
 5. Get the output of the terraform apply operation:
 
 ```
-POD=$(kubectl get tfapply example -o jsonpath='{.status.podName}')
+POD=$(kubectl get tfapply example-apply-plan -o jsonpath='{.status.podName}')
 kubectl logs -f $POD
 ```
 
@@ -197,7 +193,7 @@ kubectl apply -f example-tfdestroy.yaml
 2. Get the output of the terraform operation:
 
 ```
-POD=$(kubectl get tfdestroy example -o jsonpath='{.status.podName}')
+POD=$(kubectl get tfdestroy example-apply-plan -o jsonpath='{.status.podName}')
 kubectl logs -f $POD
 ```
 
@@ -212,7 +208,7 @@ kubectl describe tfdestroy example
 1. Remove the `Terraform*` resources:
 
 ```
-kubectl delete tfplan,tfapply,tfdestroy example
+kubectl delete tfplan,tfapply,tfdestroy example-apply-plan
 ```
 
 2. Delete the GKE cluster:

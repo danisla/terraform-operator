@@ -102,11 +102,11 @@ metadata:
   name: example
 spec:
   providerConfig:
-  - google:
+  - name: google
     secretName: tf-provider-google
   sources:
   - configMap:
-      name: example-cm
+      name: example-tf
       trigger: true
   tfvars:
   - name: region
