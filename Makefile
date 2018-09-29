@@ -3,15 +3,15 @@ TAG = latest
 all: image
 
 image:
-	gcloud builds submit -q --project cloud-solutions-group --tag gcr.io/cloud-solutions-group/terraform-operator:$(TAG) --machine-type=n1-highcpu-32
+	gcloud builds submit -q --tag gcr.io/cloud-solutions-group/terraform-operator:$(TAG) --machine-type=n1-highcpu-32
 
 terraform-pod-image:
 	cd images/terraform-pod && \
-	  gcloud builds submit -q --project cloud-solutions-group --tag gcr.io/cloud-solutions-group/terraform-pod:$(TAG) --machine-type=n1-highcpu-32
+	  gcloud builds submit -q --tag gcr.io/cloud-solutions-group/terraform-pod:$(TAG) --machine-type=n1-highcpu-32
 
 tfjson-service-image:
 	cd images/tfjson-service && \
-	  gcloud builds submit -q --project cloud-solutions-group --tag gcr.io/cloud-solutions-group/tfjson-service:$(TAG) --machine-type=n1-highcpu-32
+	  gcloud builds submit -q --tag gcr.io/cloud-solutions-group/tfjson-service:$(TAG) --machine-type=n1-highcpu-32
 
 install-metacontroller:
 	-kubectl create clusterrolebinding $(USER)-cluster-admin-binding --clusterrole=cluster-admin --user=$(shell gcloud config get-value account)
