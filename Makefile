@@ -3,7 +3,7 @@ TAG = latest
 all: image
 
 image:
-	gcloud builds submit -q --config cloudbuild.yaml --project cloud-solutions-group --substitutions=TAG_NAME=$(TAG) --machine-type=n1-highcpu-32
+	gcloud builds submit -q --project cloud-solutions-group --tag gcr.io/cloud-solutions-group/terraform-operator:$(TAG) --machine-type=n1-highcpu-32
 
 terraform-pod-image:
 	cd images/terraform-pod && \
