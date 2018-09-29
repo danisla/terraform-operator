@@ -1,5 +1,0 @@
-steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/cloud-solutions-group/tfjson-service:latest', '.']
-  dir: './tfjson-service'
-images: ['gcr.io/cloud-solutions-group/tfjson-service:latest']
