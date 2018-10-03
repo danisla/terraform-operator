@@ -3,6 +3,6 @@ READLINK=readlink
 [[ "$(uname)" =~ Darwin ]] && READLINK=greadlink
 BASE_DIR=$($READLINK -f $(dirname $0))
 
-fly -t tf set-pipeline -p terraform-operator-regression -c ${BASE_DIR}/regression.yaml -l ${BASE_DIR}/values.yaml
+fly -t tf set-pipeline -p terraform-operator -c ${BASE_DIR}/regression-and-prs.yaml -l ${BASE_DIR}/values.yaml
 
-fly -t tf expose-pipeline -p terraform-operator-regression
+fly -t tf expose-pipeline -p terraform-operator

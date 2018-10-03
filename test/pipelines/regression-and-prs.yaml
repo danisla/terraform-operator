@@ -178,6 +178,161 @@ jobs:
             gcloud -q container images add-tag gcr.io/cloud-solutions-group/${image}:${TAG} gcr.io/cloud-solutions-group/${image}:latest
           done
 
+
+###
+# build-terraform-pod-image-pr
+###
+- name: build-terraform-pod-image-pr
+  serial: true
+  plan:
+  - get: once-a-day
+    trigger: true
+  
+  - get: git-pr
+    trigger: true
+    version: every
+
+  - task: build-image
+    
+    on_failure:
+      put: git-pr
+      params:
+        path: git-pr
+        status: failure
+    
+    file: git-pr/test/tasks/build-image.yaml
+    params:
+      git_src: git-pr
+      service_account_json: ((pr-project.service_account_json))
+      project_id: ((pr-project.project_id))
+      repo: ((github_repo))
+      make: terraform-pod-image
+
+###
+# build-tfjson-image-pr
+###
+- name: build-tfjson-image-pr
+  serial: true
+  plan:
+  - get: once-a-day
+    trigger: true
+  
+  - get: git-pr
+    trigger: true
+    version: every
+
+  - task: build-image
+    
+    on_failure:
+      put: git-pr
+      params:
+        path: git-pr
+        status: failure
+
+    file: git-pr/test/tasks/build-image.yaml
+    params:
+      git_src: git-pr
+      service_account_json: ((pr-project.service_account_json))
+      project_id: ((pr-project.project_id))
+      repo: ((github_repo))
+      make: tfjson-service-image
+
+
+###
+# build-operator-pr
+###
+- name: build-operator-pr
+  serial: true
+  plan:
+  - get: once-a-day
+    trigger: true
+    version: every
+  
+  - get: git-pr
+    passed: ["build-tfjson-image-pr"]
+    trigger: true
+
+  - task: build-image
+    
+    on_failure:
+      put: git-pr
+      params:
+        path: git-pr
+        status: failure
+
+    file: git-pr/test/tasks/build-image.yaml
+    params:
+      git_src: git-pr
+      service_account_json: ((pr-project.service_account_json))
+      project_id: ((pr-project.project_id))
+      repo: ((github_repo))
+      make: image
+          
+
+###
+# test-build-pr
+###
+- name: test-build-pr
+  serial: true
+  plan:
+  - get: git-pr
+    passed: ["build-terraform-pod-image-pr", "build-operator-pr"]
+    trigger: true
+    version: every
+  
+  - task: test-build
+    
+    on_failure:
+      put: git-pr
+      params:
+        path: git-pr
+        status: failure
+
+    file: git-pr/test/tasks/test-build.yaml
+    params:
+      git_src: git-pr
+      kubeconfig: ((common.kubeconfig))
+      namespace: terraform-operator-ci
+      service_account_json: ((pr-project.service_account_json))
+      project_id: ((pr-project.project_id))
+
+
+###
+# Updates PR with Passed state if all jobs pass
+###
+- name: update-pr-passed
+  plan:
+  - get: git-pr
+    passed:
+    - build-terraform-pod-image-pr
+    - build-tfjson-image-pr
+    - build-operator-pr
+    - test-build-pr
+    trigger: true
+    version: every
+
+  - put: git-pr
+    params:
+      path: git-pr
+      status: success
+
+
+groups:
+- name: regression
+  jobs: 
+  - build-terraform-pod-image
+  - build-tfjson-image
+  - build-operator
+  - test-build
+  - tag-latest
+- name: pull-requests
+  jobs:
+  - build-terraform-pod-image-pr
+  - build-tfjson-image-pr
+  - build-operator-pr
+  - test-build-pr
+  - update-pr-passed
+
 ###
 # Resource types
 ###
@@ -186,6 +341,11 @@ resource_types:
   type: docker-image
   source:
     repository: concourse/git-resource
+
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
 
 - name: time
   type: docker-image
@@ -207,6 +367,14 @@ resources:
   source:
     uri: {{uri}}
     branch: {{branch}}
+
+- name: git-pr
+  type: pull-request
+  source:
+    access_token: ((common.github_access_token))
+    repo:         ((github_owner))/((github_repo))
+    base:         ((branch))
+    label:        ok-to-test
 
 - name: once-a-day
   type: time
