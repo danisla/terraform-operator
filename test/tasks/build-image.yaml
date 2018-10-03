@@ -1,0 +1,45 @@
+platform: linux
+inputs:
+- name: git
+- name: git-pull-requests
+  optional: true
+outputs:
+- name: email
+image_resource:
+  type: docker-image
+  source:
+    repository: google/cloud-sdk
+    tag: alpine
+params:
+  git_src:
+  service_account_json:
+  project_id:
+  repo:
+  make:
+run:
+  path: bash
+  args:
+  - -exc
+  - |
+    set -x
+    set -e
+
+    SA_JSON=${PWD}/service_account.json
+    cat > ${SA_JSON} <<EOF
+    $service_account_json
+    EOF
+    apk add --update --no-progress make
+    gcloud auth activate-service-account --key-file=${SA_JSON}
+    gcloud config set project $project_id
+
+    BASE_DIR=${PWD}
+
+    cd ${git_src}
+
+    # Setup email
+    EMAIL=${BASE_DIR}/email
+    echo "${repo}/${make}: Failed to build image" > ${EMAIL}/subject-failed
+    git --no-pager show > ${EMAIL}/body-failed
+
+    # Make the image
+    make ${make}

@@ -1,0 +1,125 @@
+platform: linux
+inputs:
+- name: git
+- name: git-pull-requests
+  optional: true
+outputs:
+- name: email
+image_resource:
+  type: docker-image
+  source:
+    repository: gcr.io/cloud-solutions-group/terraform-operator-ci
+    tag: latest
+params:
+  git_src:
+  kubeconfig:
+  namespace:
+  service_account_json:
+  project_id:
+run:
+  path: bash
+  args:
+  - -exc
+  - |
+
+    # Configure gcloud
+    SA_JSON=${PWD}/service_account.json
+    cat > ${SA_JSON} <<EOF
+    $service_account_json
+    EOF
+    apk add --update --no-progress make
+    gcloud auth activate-service-account --key-file=${SA_JSON}
+    gcloud config set project $project_id
+
+    # Configure kubectl
+    kubeconfig_file=${PWD}/kubeconfig
+    cat > ${kubeconfig_file} <<EOF
+    $kubeconfig
+    EOF
+    export KUBECONFIG=$kubeconfig_file
+    kubectl version
+
+    BASE_DIR=${PWD}
+
+    mkdir -p /go/src/github.com/danisla
+    ln -s ${BASE_DIR}/${git_src} /go/src/github.com/danisla/terraform-operator
+
+    cd /go/src/github.com/danisla/terraform-operator
+
+    # Setup email
+    EMAIL=${BASE_DIR}/email
+    echo "terraform-operator/test: Failed to test build" > ${EMAIL}/subject-failed
+    git --no-pager show > ${EMAIL}/body-failed
+
+    # Create the namespace if it doesn't exist
+    kubectl create ns $namespace || true
+
+    # Install metacontroller
+    make install-metacontroller
+
+    # Create secrets containing google credentials used by the operator and terraform pod.
+    make -e SA_JSON=${SA_JSON} -e NAMESPACE=${namespace} -e PROJECT=$project_id secrets
+
+    # Edit kustomization to target CI tags.
+    TAG=$(make tag)
+    kustomize edit set imagetag gcr.io/cloud-solutions-group/terraform-operator:${TAG}
+
+    # Create patch for the terraform-pod env var.
+    cat > manifests/dev/tfpod.yaml <<EOF
+    apiVersion: apps/v1beta1
+    kind: Deployment
+    metadata:
+      name: terraform-operator
+      namespace: metacontroller
+    spec:
+      template:
+        spec:
+          containers:
+          - name: terraform-operator
+            image: gcr.io/cloud-solutions-group/terraform-operator
+            env:
+            - name: TF_IMAGE
+              value: gcr.io/cloud-solutions-group/terraform-pod:${TAG}
+    EOF
+    cat manifests/dev/tfpod.yaml
+    kustomize edit add patch manifests/dev/tfpod.yaml
+
+    # Create patch for the tfpod rbac
+    cat > manifests/dev/tfpod-rbac.yaml <<EOF
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: terraform
+      namespace: ${namespace}
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1beta1
+    kind: ClusterRoleBinding
+    metadata:
+      name: terraform
+    subjects:
+    - kind: ServiceAccount
+      name: terraform
+      namespace: ${namespace}
+    EOF
+    cat manifests/dev/tfpod-rbac.yaml
+    kustomize edit add patch manifests/dev/tfpod-rbac.yaml
+
+    # Deploy the operator and wait for ready.
+    cat kustomization.yaml
+    kustomize build > bundle.yaml
+    kubectl apply -f bundle.yaml
+    kubectl -n metacontroller wait pod -l app=terraform-operator --for=condition=Ready --timeout=300s
+
+    # Cleanup function
+    function cleanup() {
+      # Uninstall the operator.
+      kubectl delete --wait=false -f bundle.yaml || true
+      kubectl delete --wait=false ns $namespace || true
+    }
+    trap cleanup EXIT
+
+    # Create bucket for remote state.
+    gsutil mb gs://${project_id}-terraform-operator || true
+
+    # Run the tests.
+    make -e TEST_ARGS="-namespace=$namespace -bucket=${project_id}-terraform-operator" test
