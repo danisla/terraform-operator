@@ -2,7 +2,7 @@ platform: linux
 inputs:
 - name: git
   optional: true
-- name: git-pull-requests
+- name: git-pr
   optional: true
 outputs:
 - name: email
