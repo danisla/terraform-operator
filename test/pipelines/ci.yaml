@@ -191,6 +191,11 @@ jobs:
   - get: git-pr
     trigger: true
     version: every
+  
+  - put: git-pr
+    params:
+      path: git-pr
+      status: pending
 
   - task: build-image
     
@@ -220,6 +225,11 @@ jobs:
   - get: git-pr
     trigger: true
     version: every
+  
+  - put: git-pr
+    params:
+      path: git-pr
+      status: pending
 
   - task: build-image
     
@@ -251,6 +261,11 @@ jobs:
   - get: git-pr
     passed: ["build-tfjson-image-pr"]
     trigger: true
+  
+  - put: git-pr
+    params:
+      path: git-pr
+      status: pending
 
   - task: build-image
     
@@ -279,6 +294,11 @@ jobs:
     passed: ["build-terraform-pod-image-pr", "build-operator-pr"]
     trigger: true
     version: every
+  
+  - put: git-pr
+    params:
+      path: git-pr
+      status: pending
   
   - task: test-build
     
