@@ -1,7 +1,8 @@
 platform: linux
 inputs:
 - name: git
-- name: git-pull-requests
+  optional: true
+- name: git-pr
   optional: true
 outputs:
 - name: email
