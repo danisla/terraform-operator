@@ -1,6 +1,7 @@
 platform: linux
 inputs:
 - name: git
+  optional: true
 - name: git-pull-requests
   optional: true
 outputs:
